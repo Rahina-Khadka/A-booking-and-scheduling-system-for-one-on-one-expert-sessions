@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expert Dashboard - Booking & Scheduling System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Expert Dashboard</h2>
+                <p class="lead">Welcome to your expert dashboard, <%= user.name %>!</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Manage Schedule</h5>
+                        <p class="card-text">Set your availability and manage time slots.</p>
+                        <a href="/expert/schedule" class="btn btn-success">Manage Schedule</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Session Requests</h5>
+                        <p class="card-text">Review and approve booking requests.</p>
+                        <a href="/expert/requests" class="btn btn-warning">View Requests</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Earnings</h5>
+                        <p class="card-text">Track your earnings and payment history.</p>
+                        <a href="/expert/earnings" class="btn btn-info">View Earnings</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Reviews & Ratings</h5>
+                        <p class="card-text">View client feedback and respond to reviews.</p>
+                        <a href="/expert/reviews" class="btn btn-primary">View Reviews</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Upcoming Sessions</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">No upcoming sessions scheduled.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Profile Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>Total Sessions:</strong> 0
+                        </div>
+                        <div class="mb-2">
+                            <strong>Rating:</strong> Not rated yet
+                        </div>
+                        <div class="mb-2">
+                            <strong>Response Rate:</strong> N/A
+                        </div>
+                        <a href="#" class="btn btn-outline-primary btn-sm">Edit Profile</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

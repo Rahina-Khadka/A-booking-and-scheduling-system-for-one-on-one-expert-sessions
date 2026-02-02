@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="alert alert-success text-center">
+                    <h4>✓ Booking Request Submitted!</h4>
+                    <p class="mb-0">Your session request has been sent to the expert for confirmation.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Booking Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Session Information</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Expert:</strong> <%= booking.expert.name %></li>
+                                    <li><strong>Expertise:</strong> <%= booking.expert.expertise %></li>
+                                    <li><strong>Date:</strong> <%= new Date(booking.sessionDate).toLocaleDateString() %></li>
+                                    <li><strong>Time:</strong> <%= booking.sessionTime %></li>
+                                    <li><strong>Duration:</strong> <%= booking.duration %> minutes</li>
+                                    <li><strong>Topic:</strong> <%= booking.topic %></li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Booking Details</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Booking ID:</strong> #<%= booking._id.toString().slice(-8).toUpperCase() %></li>
+                                    <li><strong>Status:</strong> 
+                                        <span class="badge bg-warning">Pending Confirmation</span>
+                                    </li>
+                                    <li><strong>Total Amount:</strong> $<%= booking.totalAmount.toFixed(2) %></li>
+                                    <li><strong>Booked on:</strong> <%= new Date(booking.createdAt).toLocaleDateString() %></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <% if (booking.description) { %>
+                            <div class="mt-3">
+                                <h6>Additional Details</h6>
+                                <p class="text-muted"><%= booking.description %></p>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h6>What happens next?</h6>
+                        <ol>
+                            <li>The expert will review your booking request</li>
+                            <li>You'll receive a confirmation email once the expert accepts</li>
+                            <li>A meeting link will be provided before the session</li>
+                            <li>Payment will be processed after the session is completed</li>
+                        </ol>
+                        
+                        <div class="alert alert-info mt-3">
+                            <strong>Note:</strong> You can view and manage all your bookings from your dashboard.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                    <a href="/booking/my-bookings" class="btn btn-primary">View My Bookings</a>
+                    <a href="/dashboard/user" class="btn btn-outline-secondary">Back to Dashboard</a>
+                    <a href="/booking/experts" class="btn btn-outline-primary">Book Another Session</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

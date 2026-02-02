@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Session - Booking & Scheduling System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+        .star-rating {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: block;
+            background: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23ddd' viewBox='0 0 24 24'%3e%3cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3e%3c/svg%3e") no-repeat center center;
+            background-size: 100%;
+        }
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            background: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23ffc107' viewBox='0 0 24 24'%3e%3cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3e%3c/svg%3e") no-repeat center center;
+            background-size: 100%;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Review Your Session</h4>
+                        <p class="mb-0 text-muted">Session with <%= booking.expert.name %> - <%= booking.topic %></p>
+                    </div>
+                    <div class="card-body">
+                        <% if (error) { %>
+                            <div class="alert alert-danger"><%= error %></div>
+                        <% } %>
+
+                        <form action="/booking/review/<%= booking._id %>" method="POST">
+                            <!-- Overall Rating -->
+                            <div class="mb-4">
+                                <label class="form-label">Overall Rating *</label>
+                                <div class="star-rating">
+                                    <input type="radio" name="rating" value="5" id="rating-5" required>
+                                    <label for="rating-5"></label>
+                                    <input type="radio" name="rating" value="4" id="rating-4">
+                                    <label for="rating-4"></label>
+                                    <input type="radio" name="rating" value="3" id="rating-3">
+                                    <label for="rating-3"></label>
+                                    <input type="radio" name="rating" value="2" id="rating-2">
+                                    <label for="rating-2"></label>
+                                    <input type="radio" name="rating" value="1" id="rating-1">
+                                    <label for="rating-1"></label>
+                                </div>
+                                <small class="text-muted">Click the stars to rate</small>
+                            </div>
+
+                            <!-- Review Title -->
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Review Title *</label>
+                                <input type="text" class="form-control" id="title" name="title" 
+                                       placeholder="Summarize your experience" maxlength="100" required>
+                            </div>
+
+                            <!-- Review Comment -->
+                            <div class="mb-4">
+                                <label for="comment" class="form-label">Your Review *</label>
+                                <textarea class="form-control" id="comment" name="comment" rows="4" 
+                                          placeholder="Share details about your session experience" 
+                                          maxlength="1000" required></textarea>
+                                <small class="text-muted">Maximum 1000 characters</small>
+                            </div>
+
+                            <!-- Category Ratings -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Communication *</label>
+                                        <div class="star-rating">
+                                            <input type="radio" name="communication" value="5" id="comm-5" required>
+                                            <label for="comm-5"></label>
+                                            <input type="radio" name="communication" value="4" id="comm-4">
+                                            <label for="comm-4"></label>
+                                            <input type="radio" name="communication" value="3" id="comm-3">
+                                            <label for="comm-3"></label>
+                                            <input type="radio" name="communication" value="2" id="comm-2">
+                                            <label for="comm-2"></label>
+                                            <input type="radio" name="communication" value="1" id="comm-1">
+                                            <label for="comm-1"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Expertise *</label>
+                                        <div class="star-rating">
+                                            <input type="radio" name="expertise" value="5" id="exp-5" required>
+                                            <label for="exp-5"></label>
+                                            <input type="radio" name="expertise" value="4" id="exp-4">
+                                            <label for="exp-4"></label>
+                                            <input type="radio" name="expertise" value="3" id="exp-3">
+                                            <label for="exp-3"></label>
+                                            <input type="radio" name="expertise" value="2" id="exp-2">
+                                            <label for="exp-2"></label>
+                                            <input type="radio" name="expertise" value="1" id="exp-1">
+                                            <label for="exp-1"></label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Punctuality *</label>
+                                        <div class="star-rating">
+                                            <input type="radio" name="punctuality" value="5" id="punct-5" required>
+                                            <label for="punct-5"></label>
+                                            <input type="radio" name="punctuality" value="4" id="punct-4">
+                                            <label for="punct-4"></label>
+                                            <input type="radio" name="punctuality" value="3" id="punct-3">
+                                            <label for="punct-3"></label>
+                                            <input type="radio" name="punctuality" value="2" id="punct-2">
+                                            <label for="punct-2"></label>
+                                            <input type="radio" name="punctuality" value="1" id="punct-1">
+                                            <label for="punct-1"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Helpfulness *</label>
+                                        <div class="star-rating">
+                                            <input type="radio" name="helpfulness" value="5" id="help-5" required>
+                                            <label for="help-5"></label>
+                                            <input type="radio" name="helpfulness" value="4" id="help-4">
+                                            <label for="help-4"></label>
+                                            <input type="radio" name="helpfulness" value="3" id="help-3">
+                                            <label for="help-3"></label>
+                                            <input type="radio" name="helpfulness" value="2" id="help-2">
+                                            <label for="help-2"></label>
+                                            <input type="radio" name="helpfulness" value="1" id="help-1">
+                                            <label for="help-1"></label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recommendation -->
+                            <div class="mb-4">
+                                <label class="form-label">Would you recommend this expert? *</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="wouldRecommend" 
+                                           id="recommend-yes" value="true" required>
+                                    <label class="form-check-label" for="recommend-yes">
+                                        Yes, I would recommend
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="wouldRecommend" 
+                                           id="recommend-no" value="false" required>
+                                    <label class="form-check-label" for="recommend-no">
+                                        No, I would not recommend
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/booking/my-bookings" class="btn btn-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-primary">Submit Review</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

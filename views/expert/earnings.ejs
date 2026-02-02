@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings - Expert Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-info">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions - Earnings</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Earnings Dashboard</h2>
+                <p class="lead">Track your earnings and payment history</p>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <form method="GET" action="/expert/earnings" class="row g-3">
+                            <div class="col-md-3">
+                                <label for="period" class="form-label">Time Period</label>
+                                <select class="form-control" id="period" name="period">
+                                    <option value="all" <%= period === 'all' ? 'selected' : '' %>>All Time</option>
+                                    <option value="week" <%= period === 'week' ? 'selected' : '' %>>This Week</option>
+                                    <option value="month" <%= period === 'month' ? 'selected' : '' %>>This Month</option>
+                                    <option value="year" <%= period === 'year' ? 'selected' : '' %>>This Year</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="year" class="form-label">Year</label>
+                                <select class="form-control" id="year" name="year">
+                                    <% for (let y = new Date().getFullYear(); y >= 2020; y--) { %>
+                                        <option value="<%= y %>" <%= year === y ? 'selected' : '' %>><%= y %></option>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary d-block">Filter</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4>$<%= stats.totalEarnings.toFixed(2) %></h4>
+                        <small>Total Earnings</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4>$<%= stats.netEarnings.toFixed(2) %></h4>
+                        <small>Net Earnings</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4>$<%= stats.paidEarnings.toFixed(2) %></h4>
+                        <small>Paid Out</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h4>$<%= stats.pendingEarnings.toFixed(2) %></h4>
+                        <small>Pending</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h4>$<%= stats.totalCommission.toFixed(2) %></h4>
+                        <small>Platform Fee</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center">
+                        <h4><%= stats.completedSessions %></h4>
+                        <small>Sessions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Earnings Chart -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Monthly Earnings Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="earningsChart" width="400" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Earnings Table -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Earnings History</h5>
+                    </div>
+                    <div class="card-body">
+                        <% if (earnings.length === 0) { %>
+                            <div class="alert alert-info text-center">
+                                <h6>No earnings yet</h6>
+                                <p>Complete sessions to start earning money!</p>
+                            </div>
+                        <% } else { %>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Session</th>
+                                            <th>Client</th>
+                                            <th>Duration</th>
+                                            <th>Gross Amount</th>
+                                            <th>Platform Fee</th>
+                                            <th>Net Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% earnings.forEach(earning => { %>
+                                            <tr>
+                                                <td><%= new Date(earning.createdAt).toLocaleDateString() %></td>
+                                                <td>
+                                                    <strong><%= earning.booking.topic %></strong><br>
+                                                    <small class="text-muted">
+                                                        <%= new Date(earning.booking.sessionDate).toLocaleDateString() %>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <%= earning.booking.user.name %><br>
+                                                    <small class="text-muted"><%= earning.booking.user.email %></small>
+                                                </td>
+                                                <td><%= earning.booking.duration %> min</td>
+                                                <td>$<%= earning.amount.toFixed(2) %></td>
+                                                <td>$<%= (earning.amount * earning.commission / 100).toFixed(2) %> (<%= earning.commission %>%)</td>
+                                                <td><strong>$<%= earning.netAmount.toFixed(2) %></strong></td>
+                                                <td>
+                                                    <span class="badge <%= earning.status === 'paid' ? 'bg-success' : earning.status === 'processing' ? 'bg-warning' : 'bg-secondary' %>">
+                                                        <%= earning.status.charAt(0).toUpperCase() + earning.status.slice(1) %>
+                                                    </span>
+                                                    <% if (earning.paymentDate) { %>
+                                                        <br><small class="text-muted">
+                                                            Paid: <%= new Date(earning.paymentDate).toLocaleDateString() %>
+                                                        </small>
+                                                    <% } %>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Payment Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>How Payments Work:</h6>
+                                <ul class="small">
+                                    <li>Earnings are generated when sessions are marked as completed</li>
+                                    <li>Platform fee: 10% of gross earnings</li>
+                                    <li>Payments are processed weekly on Fridays</li>
+                                    <li>Minimum payout threshold: $50</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Payment Schedule:</h6>
+                                <ul class="small">
+                                    <li><strong>Pending:</strong> Session completed, payment processing</li>
+                                    <li><strong>Processing:</strong> Payment being transferred</li>
+                                    <li><strong>Paid:</strong> Money transferred to your account</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to Dashboard -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <a href="/dashboard/expert" class="btn btn-secondary">← Back to Dashboard</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Earnings Chart
+        const ctx = document.getElementById('earningsChart').getContext('2d');
+        const monthlyData = <%- JSON.stringify(monthlyEarnings) %>;
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(item => item.month),
+                datasets: [{
+                    label: 'Net Earnings ($)',
+                    data: monthlyData.map(item => item.amount),
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Earnings: $' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Schedule - Expert Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+        .time-inputs {
+            transition: all 0.3s ease;
+        }
+        .is-invalid {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+        }
+        .day-row {
+            transition: background-color 0.2s ease;
+        }
+        .day-row:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions - Schedule</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Manage Your Schedule</h2>
+                <p class="lead">Set your availability for each day of the week</p>
+            </div>
+        </div>
+
+        <% if (success) { %>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <%= success %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <% } %>
+
+        <% if (error) { %>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <%= error %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <% } %>
+
+        <form action="/expert/schedule" method="POST" id="scheduleForm">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Weekly Schedule</h5>
+                        </div>
+                        <div class="card-body">
+                            <% daysOfWeek.forEach(day => { %>
+                                <div class="row mb-4 p-3 border rounded day-row">
+                                    <div class="col-md-2">
+                                        <h6 class="text-capitalize"><%= day %></h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input day-toggle" type="checkbox" 
+                                                   id="available_<%= day %>" 
+                                                   name="scheduleData[<%= day %>][isAvailable]" 
+                                                   value="true"
+                                                   <%= schedules[day] && schedules[day].isAvailable ? 'checked' : '' %>>
+                                            <label class="form-check-label" for="available_<%= day %>">
+                                                Available
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 time-inputs" style="<%= schedules[day] && schedules[day].isAvailable ? '' : 'display: none;' %>">
+                                        <label class="form-label">Start Time *</label>
+                                        <select class="form-control" name="scheduleData[<%= day %>][startTime]" required>
+                                            <option value="">Select Start Time</option>
+                                            <% for (let hour = 6; hour <= 22; hour++) { %>
+                                                <% const timeStr = hour.toString().padStart(2, '0') + ':00'; %>
+                                                <option value="<%= timeStr %>" 
+                                                        <%= schedules[day] && schedules[day].startTime === timeStr ? 'selected' : '' %>>
+                                                    <%= hour <= 12 ? (hour === 12 ? '12' : hour) : (hour - 12) %>:00 
+                                                    <%= hour < 12 ? 'AM' : 'PM' %>
+                                                </option>
+                                                <% const timeStr30 = hour.toString().padStart(2, '0') + ':30'; %>
+                                                <option value="<%= timeStr30 %>" 
+                                                        <%= schedules[day] && schedules[day].startTime === timeStr30 ? 'selected' : '' %>>
+                                                    <%= hour <= 12 ? (hour === 12 ? '12' : hour) : (hour - 12) %>:30 
+                                                    <%= hour < 12 ? 'AM' : 'PM' %>
+                                                </option>
+                                            <% } %>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-4 time-inputs" style="<%= schedules[day] && schedules[day].isAvailable ? '' : 'display: none;' %>">
+                                        <label class="form-label">End Time *</label>
+                                        <select class="form-control" name="scheduleData[<%= day %>][endTime]" required>
+                                            <option value="">Select End Time</option>
+                                            <% for (let hour = 7; hour <= 23; hour++) { %>
+                                                <% const timeStr = hour.toString().padStart(2, '0') + ':00'; %>
+                                                <option value="<%= timeStr %>" 
+                                                        <%= schedules[day] && schedules[day].endTime === timeStr ? 'selected' : '' %>>
+                                                    <%= hour <= 12 ? (hour === 12 ? '12' : hour) : (hour - 12) %>:00 
+                                                    <%= hour < 12 ? 'AM' : 'PM' %>
+                                                </option>
+                                                <% const timeStr30 = hour.toString().padStart(2, '0') + ':30'; %>
+                                                <option value="<%= timeStr30 %>" 
+                                                        <%= schedules[day] && schedules[day].endTime === timeStr30 ? 'selected' : '' %>>
+                                                    <%= hour <= 12 ? (hour === 12 ? '12' : hour) : (hour - 12) %>:30 
+                                                    <%= hour < 12 ? 'AM' : 'PM' %>
+                                                </option>
+                                            <% } %>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-2 time-inputs" style="<%= schedules[day] && schedules[day].isAvailable ? '' : 'display: none;' %>">
+                                        <label class="form-label">Duration</label>
+                                        <div class="text-muted small mt-2">
+                                            <% if (schedules[day] && schedules[day].startTime && schedules[day].endTime) { %>
+                                                <% const startParts = schedules[day].startTime.split(':'); %>
+                                                <% const endParts = schedules[day].endTime.split(':'); %>
+                                                <% const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]); %>
+                                                <% const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]); %>
+                                                <% const durationMinutes = endMinutes - startMinutes; %>
+                                                <% const hours = Math.floor(durationMinutes / 60); %>
+                                                <% const minutes = durationMinutes % 60; %>
+                                                <span class="badge bg-info">
+                                                    <%= hours > 0 ? hours + 'h ' : '' %><%= minutes > 0 ? minutes + 'm' : '' %>
+                                                </span>
+                                            <% } else { %>
+                                                <span class="text-muted">--</span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6>Schedule Tips:</h6>
+                            <ul class="small text-muted">
+                                <li>Set realistic availability hours that you can consistently maintain</li>
+                                <li>Consider time zones of your potential clients</li>
+                                <li>Leave buffer time between sessions for preparation</li>
+                                <li>You can update your schedule anytime, but try to give advance notice</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/dashboard/expert" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">Save Schedule</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle time inputs based on availability checkbox
+        document.querySelectorAll('.day-toggle').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const row = this.closest('.row');
+                const timeInputs = row.querySelectorAll('.time-inputs');
+                
+                timeInputs.forEach(timeInput => {
+                    if (this.checked) {
+                        timeInput.style.display = 'block';
+                    } else {
+                        timeInput.style.display = 'none';
+                        // Clear the values when hiding
+                        const selects = timeInput.querySelectorAll('select');
+                        selects.forEach(select => select.value = '');
+                    }
+                });
+            });
+        });
+
+        // Form validation
+        document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+            let hasValidSchedule = false;
+            let hasError = false;
+            
+            document.querySelectorAll('.day-toggle:checked').forEach(checkbox => {
+                const dayName = checkbox.id.replace('available_', '');
+                const startTimeSelect = document.querySelector(`select[name="scheduleData[${dayName}][startTime]"]`);
+                const endTimeSelect = document.querySelector(`select[name="scheduleData[${dayName}][endTime]"]`);
+                
+                const startTime = startTimeSelect.value;
+                const endTime = endTimeSelect.value;
+                
+                if (!startTime || !endTime) {
+                    hasError = true;
+                    // Highlight the missing fields
+                    if (!startTime) startTimeSelect.classList.add('is-invalid');
+                    if (!endTime) endTimeSelect.classList.add('is-invalid');
+                } else {
+                    // Validate that end time is after start time
+                    const startHour = parseInt(startTime.split(':')[0]) + (startTime.includes(':30') ? 0.5 : 0);
+                    const endHour = parseInt(endTime.split(':')[0]) + (endTime.includes(':30') ? 0.5 : 0);
+                    
+                    if (endHour <= startHour) {
+                        hasError = true;
+                        endTimeSelect.classList.add('is-invalid');
+                        alert(`End time must be after start time for ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}`);
+                    } else {
+                        hasValidSchedule = true;
+                        startTimeSelect.classList.remove('is-invalid');
+                        endTimeSelect.classList.remove('is-invalid');
+                    }
+                }
+            });
+            
+            if (hasError) {
+                e.preventDefault();
+                if (!hasValidSchedule) {
+                    alert('Please set at least one day with valid start and end times.');
+                }
+            } else if (!hasValidSchedule) {
+                e.preventDefault();
+                alert('Please set at least one day with valid start and end times.');
+            }
+        });
+
+        // Remove validation styling on change
+        document.querySelectorAll('select').forEach(select => {
+            select.addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
+    </script>
+</body>
+</html>

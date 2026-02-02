@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= expert.name %> - Expert Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Expert Sessions</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, <%= user.name %></span>
+                <form action="/auth/logout" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h2><%= expert.name %></h2>
+                        <h4 class="text-muted mb-3"><%= expert.expertise %></h4>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>About</h5>
+                                <p><%= expert.bio || 'No bio available' %></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Details</h5>
+                                <ul class="list-unstyled">
+                                    <li><strong>Hourly Rate:</strong> $<%= expert.hourlyRate %></li>
+                                    <li><strong>Experience:</strong> <%= expert.experience?.years || 'Not specified' %> years</li>
+                                    <li><strong>Member since:</strong> <%= new Date(expert.createdAt).toLocaleDateString() %></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <% if (expert.skills && expert.skills.length > 0) { %>
+                            <div class="mb-4">
+                                <h5>Skills</h5>
+                                <% expert.skills.forEach(skill => { %>
+                                    <span class="badge bg-primary me-2 mb-2"><%= skill %></span>
+                                <% }) %>
+                            </div>
+                        <% } %>
+
+                        <% if (expert.experience?.description) { %>
+                            <div class="mb-4">
+                                <h5>Professional Experience</h5>
+                                <p><%= expert.experience.description %></p>
+                            </div>
+                        <% } %>
+
+                        <% if (expert.experience?.certifications && expert.experience.certifications.length > 0) { %>
+                            <div class="mb-4">
+                                <h5>Certifications</h5>
+                                <% expert.experience.certifications.forEach(cert => { %>
+                                    <div class="card mb-2">
+                                        <div class="card-body py-2">
+                                            <h6 class="mb-1"><%= cert.name %></h6>
+                                            <small class="text-muted">
+                                                <%= cert.issuer %> 
+                                                <% if (cert.dateObtained) { %>
+                                                    - <%= new Date(cert.dateObtained).getFullYear() %>
+                                                <% } %>
+                                            </small>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } %>
+
+                        <!-- Reviews Section -->
+                        <div class="mb-4">
+                            <h5>Reviews & Ratings</h5>
+                            
+                            <% if (stats.totalReviews > 0) { %>
+                                <!-- Rating Summary -->
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 text-center">
+                                                <h2 class="text-primary mb-0"><%= stats.averageRating.toFixed(1) %></h2>
+                                                <div class="text-warning mb-2">
+                                                    <% for (let i = 1; i <= 5; i++) { %>
+                                                        <% if (i <= Math.round(stats.averageRating)) { %>
+                                                            ★
+                                                        <% } else { %>
+                                                            ☆
+                                                        <% } %>
+                                                    <% } %>
+                                                </div>
+                                                <small class="text-muted"><%= stats.totalReviews %> review<%= stats.totalReviews !== 1 ? 's' : '' %></small>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="row">
+                                                    <div class="col-6">
+                                                        <small><strong>Communication:</strong> <%= stats.averageCommunication.toFixed(1) %>/5</small><br>
+                                                        <small><strong>Expertise:</strong> <%= stats.averageExpertise.toFixed(1) %>/5</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small><strong>Punctuality:</strong> <%= stats.averagePunctuality.toFixed(1) %>/5</small><br>
+                                                        <small><strong>Helpfulness:</strong> <%= stats.averageHelpfulness.toFixed(1) %>/5</small>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-success">
+                                                        <%= Math.round((stats.recommendationCount / stats.totalReviews) * 100) %>% would recommend
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Individual Reviews -->
+                                <% reviews.forEach(review => { %>
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <h6 class="mb-1"><%= review.title %></h6>
+                                                    <div class="text-warning mb-1">
+                                                        <% for (let i = 1; i <= 5; i++) { %>
+                                                            <% if (i <= review.rating) { %>
+                                                                ★
+                                                            <% } else { %>
+                                                                ☆
+                                                            <% } %>
+                                                        <% } %>
+                                                    </div>
+                                                    <small class="text-muted">by <%= review.user.name %></small>
+                                                </div>
+                                                <small class="text-muted"><%= new Date(review.createdAt).toLocaleDateString() %></small>
+                                            </div>
+                                            
+                                            <p class="mb-2"><%= review.comment %></p>
+                                            
+                                            <% if (review.wouldRecommend) { %>
+                                                <small class="text-success">✓ Would recommend</small>
+                                            <% } %>
+                                            
+                                            <% if (review.expertResponse && review.expertResponse.comment) { %>
+                                                <div class="mt-3 p-3 bg-light rounded">
+                                                    <small class="text-muted"><strong>Expert Response:</strong></small>
+                                                    <p class="mb-1 small"><%= review.expertResponse.comment %></p>
+                                                    <small class="text-muted">
+                                                        Responded on <%= new Date(review.expertResponse.respondedAt).toLocaleDateString() %>
+                                                    </small>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <div class="text-center text-muted py-4">
+                                    <p>No reviews yet</p>
+                                    <small>Be the first to book a session and leave a review!</small>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Book a Session</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h3 class="text-primary">$<%= expert.hourlyRate %></h3>
+                            <small class="text-muted">per hour</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="/booking/book/<%= expert._id %>" class="btn btn-primary">Book Session Now</a>
+                            <a href="/booking/experts" class="btn btn-outline-secondary">← Back to Experts</a>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="text-center">
+                            <small class="text-muted">
+                                Sessions are conducted online via video call
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6>Session Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled small">
+                            <li>✓ One-on-one expert consultation</li>
+                            <li>✓ Flexible scheduling</li>
+                            <li>✓ Video call included</li>
+                            <li>✓ Session notes provided</li>
+                            <li>✓ Follow-up support</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
