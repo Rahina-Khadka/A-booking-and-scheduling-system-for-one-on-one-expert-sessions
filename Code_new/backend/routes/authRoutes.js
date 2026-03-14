@@ -16,10 +16,14 @@ router.get(
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.CLIENT_URL}/login?error=auth_failed`,
-    session: false 
-  }),
+  (req, res, next) => {
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+      if (err) return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=auth_failed`);
+      if (!user) return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=unauthorized`);
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
   googleCallback
 );
 

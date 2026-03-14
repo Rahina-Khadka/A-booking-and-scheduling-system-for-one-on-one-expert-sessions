@@ -124,19 +124,21 @@ const login = async (req, res) => {
  */
 const googleCallback = async (req, res) => {
   try {
-    // User is attached to req by passport
     if (!req.user) {
-      return res.redirect(`${process.env.CLIENT_URL}/login?error=unauthorized`);
+      return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=unauthorized`);
     }
 
-    // Generate JWT token
-    const token = generateToken(req.user._id);
+    // Only admin users can use Google OAuth login
+    if (req.user.role !== 'admin') {
+      return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=unauthorized`);
+    }
 
-    // Redirect to frontend with token
+    const token = generateToken(req.user._id);
+    // Redirect to the shared success handler with role hint
     res.redirect(`${process.env.CLIENT_URL}/auth/google/success?token=${token}`);
   } catch (error) {
     console.error('Google callback error:', error);
-    res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
+    res.redirect(`${process.env.CLIENT_URL}/admin/login?error=auth_failed`);
   }
 };
 

@@ -69,69 +69,63 @@ const AdminDashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
         <Navbar />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-xl text-gray-600">Loading...</div>
-        </div>
+        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+            <span className="text-white text-lg">🛡️</span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-sm text-gray-500">System management panel</p>
+          </div>
+        </div>
 
         {/* Tabs */}
-        <div className="mb-6 border-b">
-          <div className="flex gap-4">
-            {['overview', 'users', 'experts', 'bookings'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 capitalize ${
-                  activeTab === tab
-                    ? 'border-b-2 border-primary text-primary font-medium'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        <div className="mb-6 flex gap-2 flex-wrap">
+          {['overview', 'users', 'experts', 'bookings'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2 rounded-xl text-sm font-medium capitalize transition-all ${
+                activeTab === tab
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
         {/* Overview Tab */}
         {activeTab === 'overview' && stats && (
           <div>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Total Users</h3>
-                <p className="text-3xl font-bold text-primary">{stats.totalUsers}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Total Experts</h3>
-                <p className="text-3xl font-bold text-secondary">{stats.totalExperts}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Total Bookings</h3>
-                <p className="text-3xl font-bold text-green-600">{stats.totalBookings}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Completed Sessions</h3>
-                <p className="text-3xl font-bold text-blue-600">{stats.completedBookings}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Pending Bookings</h3>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pendingBookings}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-gray-600 text-sm font-medium mb-2">Total Reviews</h3>
-                <p className="text-3xl font-bold text-purple-600">{stats.totalReviews}</p>
-              </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {[
+                { label:'Total Users', value: stats.totalUsers, color:'bg-indigo-50 border-indigo-100 text-indigo-700', icon:'👥' },
+                { label:'Total Experts', value: stats.totalExperts, color:'bg-green-50 border-green-100 text-green-700', icon:'🎓' },
+                { label:'Total Bookings', value: stats.totalBookings, color:'bg-cyan-50 border-cyan-100 text-cyan-700', icon:'📅' },
+                { label:'Completed Sessions', value: stats.completedBookings, color:'bg-blue-50 border-blue-100 text-blue-700', icon:'✅' },
+                { label:'Pending Bookings', value: stats.pendingBookings, color:'bg-yellow-50 border-yellow-100 text-yellow-700', icon:'⏳' },
+                { label:'Total Reviews', value: stats.totalReviews, color:'bg-purple-50 border-purple-100 text-purple-700', icon:'⭐' },
+              ].map(s => (
+                <div key={s.label} className={`rounded-2xl border p-5 ${s.color}`}>
+                  <div className="text-2xl mb-2">{s.icon}</div>
+                  <div className="text-3xl font-bold">{s.value}</div>
+                  <div className="text-xs font-medium opacity-70 mt-1">{s.label}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}

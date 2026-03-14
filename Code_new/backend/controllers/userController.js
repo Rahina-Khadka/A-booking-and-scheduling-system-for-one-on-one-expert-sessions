@@ -34,11 +34,16 @@ const updateProfile = async (req, res) => {
       user.phone = req.body.phone || user.phone;
       user.bio = req.body.bio || user.bio;
       user.interests = req.body.interests || user.interests;
+      if (req.body.profilePicture !== undefined) {
+        user.profilePicture = req.body.profilePicture;
+      }
 
       // Update expert-specific fields if user is an expert
       if (user.role === 'expert') {
         user.expertise = req.body.expertise || user.expertise;
         user.availability = req.body.availability || user.availability;
+        if (req.body.hourlyRate !== undefined) user.hourlyRate = req.body.hourlyRate;
+        if (req.body.isOnline !== undefined) user.isOnline = req.body.isOnline;
       }
 
       const updatedUser = await user.save();

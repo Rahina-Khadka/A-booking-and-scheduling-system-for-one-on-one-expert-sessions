@@ -7,9 +7,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#4F46E5',
-        secondary: '#06B6D4',
-      }
+        primary: '#6366F1',
+        secondary: '#22C55E',
+        accent: '#06B6D4',
+      },
+      fontFamily: {
+        sans: ['Inter', 'Poppins', 'system-ui', 'sans-serif'],
+      },
+      backgroundImage: {
+        'hero-gradient': 'linear-gradient(135deg, #6366F1 0%, #06B6D4 100%)',
+      },
     },
   },
   plugins: [],

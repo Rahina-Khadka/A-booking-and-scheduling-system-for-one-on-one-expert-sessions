@@ -45,6 +45,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  hourlyRate: {
+    type: Number,
+    default: 0
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
   // Expert-specific fields
   expertise: [{
     type: String,

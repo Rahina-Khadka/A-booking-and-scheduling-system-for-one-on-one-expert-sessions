@@ -1,15 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 
-/**
- * Google Auth Success Page
- * Handles the redirect after successful Google OAuth
- */
 const GoogleAuthSuccessPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [searchParams] = useSearchParams();
+  const [status, setStatus] = useState('Completing authentication...');
 
   useEffect(() => {
     const handleGoogleAuth = async () => {
@@ -21,30 +16,31 @@ const GoogleAuthSuccessPage = () => {
       }
 
       try {
-        // Decode token to get user info
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        
-        // Store token and user info
-        localStorage.setItem('token', token);
-        
-        // Fetch user details
         const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/google/current`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (response.ok) {
-          const userData = await response.json();
-          localStorage.setItem('user', JSON.stringify(userData));
-          
-          // Update auth context
-          window.location.href = '/admin';
-        } else {
+        if (!response.ok) {
           navigate('/admin/login?error=auth_failed');
+          return;
         }
+
+        const userData = await response.json();
+
+        if (userData.role !== 'admin') {
+          navigate('/admin/login?error=unauthorized');
+          return;
+        }
+
+        // Store credentials
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        setStatus('Access granted. Redirecting to Admin Dashboard...');
+        // Hard reload so AuthProvider picks up the new localStorage state
+        window.location.href = '/admin';
       } catch (error) {
-        console.error('Error handling Google auth:', error);
+        console.error('Google auth error:', error);
         navigate('/admin/login?error=auth_failed');
       }
     };
@@ -53,10 +49,10 @@ const GoogleAuthSuccessPage = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-xl text-gray-600">Completing authentication...</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-cyan-500">
+      <div className="text-center text-white">
+        <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-6" />
+        <p className="text-xl font-medium">{status}</p>
       </div>
     </div>
   );

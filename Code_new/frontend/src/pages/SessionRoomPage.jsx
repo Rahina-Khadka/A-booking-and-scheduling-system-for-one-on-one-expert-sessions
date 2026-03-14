@@ -175,7 +175,7 @@ const SessionRoomPage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+        <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 text-center">
           <h2 className="text-2xl font-bold text-red-600 mb-4">{error}</h2>
           <Link to="/bookings" className="text-primary hover:underline">
             Back to Bookings

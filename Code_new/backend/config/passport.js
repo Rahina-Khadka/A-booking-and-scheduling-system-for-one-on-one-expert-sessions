@@ -7,10 +7,12 @@ const User = require('../models/User');
  * Handles Google authentication for admin users
  */
 
-// List of authorized admin emails
-const authorizedAdminEmails = process.env.ADMIN_EMAILS 
-  ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase())
-  : [];
+// Support both ADMIN_EMAIL (single) and ADMIN_EMAILS (comma-separated list)
+const rawEmails = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
+const authorizedAdminEmails = rawEmails
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
 
 // Initialize Google OAuth Strategy
 passport.use(

@@ -84,7 +84,7 @@ const BookingPage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+        <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900">Expert not found</h2>
           <Link to="/experts" className="text-primary hover:underline mt-4 inline-block">
             Back to Experts
@@ -98,7 +98,7 @@ const BookingPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         <Link to={`/experts/${expertId}`} className="text-primary hover:underline mb-6 inline-block">
           ← Back to Expert Profile
         </Link>
