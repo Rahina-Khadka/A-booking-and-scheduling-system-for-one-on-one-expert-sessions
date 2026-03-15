@@ -23,7 +23,7 @@ const register = async (req, res) => {
       role: req.body.role 
     });
 
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, documents } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -38,14 +38,16 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Build user data
+    const userData = { name, email, password, role: role || 'user' };
+    if (role === 'expert' && documents) {
+      userData.documents = documents;
+      userData.verificationStatus = 'pending';
+    }
+
     // Create user
     console.log('✅ Creating new user...');
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: role || 'user'
-    });
+    const user = await User.create(userData);
 
     console.log('✅ User created successfully:', user._id);
 
@@ -56,6 +58,7 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        verificationStatus: user.verificationStatus,
         token: token
       });
     } else {

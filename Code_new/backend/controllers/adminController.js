@@ -147,11 +147,69 @@ const updateUserRole = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get experts pending verification
+ * @route   GET /api/admin/experts/pending
+ * @access  Private/Admin
+ */
+const getPendingExperts = async (req, res) => {
+  try {
+    const experts = await User.find({ role: 'expert', verificationStatus: 'pending' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    res.json(experts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Approve or reject expert verification
+ * @route   PUT /api/admin/experts/:id/verify
+ * @access  Private/Admin
+ */
+const verifyExpert = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    const expert = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'expert' },
+      { verificationStatus: status },
+      { new: true }
+    ).select('-password');
+    if (!expert) return res.status(404).json({ message: 'Expert not found' });
+
+    // Send in-app notification to expert
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        userId: expert._id,
+        type: 'verification_update',
+        title: status === 'approved' ? '🎉 Verification Approved' : 'Verification Rejected',
+        message: status === 'approved'
+          ? 'Congratulations! Your expert profile has been verified. You are now visible to users.'
+          : 'Your verification was rejected. Please contact support for more information.',
+        link: '/expert-dashboard'
+      });
+    } catch (notifErr) {
+      console.error('Notification error:', notifErr);
+    }
+
+    res.json({ message: `Expert ${status}`, expert });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllExperts,
   getAllBookings,
   getSystemStats,
   deleteUser,
-  updateUserRole
+  updateUserRole,
+  getPendingExperts,
+  verifyExpert
 };

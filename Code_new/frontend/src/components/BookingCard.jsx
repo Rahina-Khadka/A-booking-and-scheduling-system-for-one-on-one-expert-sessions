@@ -13,9 +13,8 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
   const expert = booking.expertId;
   const user = booking.userId;
 
-  // Check if session is today and confirmed
-  const isToday = new Date(booking.date).toDateString() === new Date().toDateString();
-  const canJoinSession = booking.status === 'confirmed' && isToday;
+  // Check if session is confirmed
+  const canJoinSession = booking.status === 'confirmed';
   const canReview = !isExpert && booking.status === 'completed';
 
   return (
@@ -90,7 +89,7 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
             </button>
           )}
 
-          {booking.status === 'confirmed' && !canJoinSession && (
+          {booking.status === 'confirmed' && isExpert && (
             <button
               onClick={() => onStatusChange(booking._id, 'completed')}
               className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"

@@ -35,6 +35,8 @@ const GoogleAuthSuccessPage = () => {
         // Store credentials
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
+        // Mark session as alive so AuthProvider keeps the user logged in
+        sessionStorage.setItem('session_alive', '1');
 
         setStatus('Access granted. Redirecting to Admin Dashboard...');
         // Hard reload so AuthProvider picks up the new localStorage state

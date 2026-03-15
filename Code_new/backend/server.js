@@ -20,16 +20,21 @@ connectDB(); // make sure your ./config/database.js uses process.env.MONGODB_URI
 const app = express();
 const server = http.createServer(app);
 
+// Shared CORS origin checker
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
+  if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
+  // Allow any Vercel preview/production deployment for this project
+  if (process.env.VERCEL_PROJECT && origin.includes(process.env.VERCEL_PROJECT)) return true;
+  return false;
+};
+
 // Initialize Socket.io with CORS
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost:\d+$/.test(origin)) {
-        return callback(null, true);
-      }
-      if (origin === process.env.CLIENT_URL) return callback(null, true);
-      callback(new Error('Not allowed by CORS'));
+      isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST'],
     credentials: true
@@ -39,20 +44,12 @@ const io = new Server(server, {
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    // Allow any localhost port in development
-    if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost:\d+$/.test(origin)) {
-      return callback(null, true);
-    }
-    // In production, only allow the configured CLIENT_URL
-    if (origin === process.env.CLIENT_URL) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
+    isAllowedOrigin(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Session middleware (required for passport)
 app.use(session({
@@ -104,6 +101,9 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
 
+  // Join personal notification room so user can receive cross-room events
+  socket.join(`user_${socket.userId}`);
+
   // Join a session room
   socket.on('join-room', async ({ bookingId }) => {
     try {
@@ -126,6 +126,16 @@ io.on('connection', (socket) => {
       socket.bookingId = bookingId;
       socket.to(bookingId).emit('user-joined', { userId: socket.userId });
       console.log(`User ${socket.userId} joined room ${bookingId}`);
+
+      // If the person joining is the expert, notify the user in their personal room
+      const isExpert = booking.expertId.toString() === socket.userId;
+      if (isExpert) {
+        const userPersonalRoom = `user_${booking.userId.toString()}`;
+        io.to(userPersonalRoom).emit('expert-waiting', {
+          bookingId,
+          expertName: socket.userName || 'Your expert',
+        });
+      }
     } catch (error) {
       console.error('Error joining room:', error);
       socket.emit('error', { message: 'Failed to join room' });

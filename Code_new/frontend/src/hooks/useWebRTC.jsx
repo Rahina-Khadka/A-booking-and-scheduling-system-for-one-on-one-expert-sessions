@@ -1,10 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import socketService from '../services/socketService';
 
-/**
- * Custom hook for WebRTC functionality
- * Handles peer-to-peer audio/video connections
- */
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    // Free TURN server for same-device / same-network testing
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+  ],
+};
+
 const useWebRTC = (bookingId) => {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -15,29 +29,16 @@ const useWebRTC = (bookingId) => {
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
 
-  // ICE servers configuration (using free STUN servers)
-  const iceServers = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  };
-
-  /**
-   * Initialize local media stream
-   */
   const initializeMedia = async (audio = true, video = false) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio,
-        video: video ? { width: 1280, height: 720 } : false
+        video: video ? { width: 1280, height: 720 } : false,
       });
-
       localStreamRef.current = stream;
       setLocalStream(stream);
       setIsAudioEnabled(audio);
       setIsVideoEnabled(video);
-
       return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
@@ -45,37 +46,38 @@ const useWebRTC = (bookingId) => {
     }
   };
 
-  /**
-   * Create peer connection
-   */
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection(iceServers);
+    // Close any existing connection first
+    if (peerConnection.current) {
+      peerConnection.current.close();
+    }
 
-    // Add local stream tracks to peer connection
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current);
       });
     }
 
-    // Handle incoming tracks
     pc.ontrack = (event) => {
       setRemoteStream(event.streams[0]);
       setIsConnected(true);
     };
 
-    // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socketService.sendIceCandidate(bookingId, event.candidate);
       }
     };
 
-    // Handle connection state changes
     pc.onconnectionstatechange = () => {
       console.log('Connection state:', pc.connectionState);
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
         setIsConnected(false);
+      }
+      if (pc.connectionState === 'connected') {
+        setIsConnected(true);
       }
     };
 
@@ -83,9 +85,6 @@ const useWebRTC = (bookingId) => {
     return pc;
   };
 
-  /**
-   * Create and send offer
-   */
   const createOffer = async () => {
     try {
       const pc = createPeerConnection();
@@ -97,9 +96,6 @@ const useWebRTC = (bookingId) => {
     }
   };
 
-  /**
-   * Handle incoming offer
-   */
   const handleOffer = async (offer) => {
     try {
       const pc = createPeerConnection();
@@ -112,9 +108,6 @@ const useWebRTC = (bookingId) => {
     }
   };
 
-  /**
-   * Handle incoming answer
-   */
   const handleAnswer = async (answer) => {
     try {
       if (peerConnection.current) {
@@ -125,9 +118,6 @@ const useWebRTC = (bookingId) => {
     }
   };
 
-  /**
-   * Handle incoming ICE candidate
-   */
   const handleIceCandidate = async (candidate) => {
     try {
       if (peerConnection.current) {
@@ -139,44 +129,47 @@ const useWebRTC = (bookingId) => {
   };
 
   /**
-   * Toggle audio
+   * Called from SessionRoomPage AFTER socket is connected.
+   * Registers WebRTC signaling listeners exactly once.
    */
+  const registerSignalingListeners = () => {
+    if (!socketService.socket) return;
+    socketService.socket.off('webrtc-offer');
+    socketService.socket.off('webrtc-answer');
+    socketService.socket.off('webrtc-ice-candidate');
+
+    socketService.socket.on('webrtc-offer', ({ offer }) => handleOffer(offer));
+    socketService.socket.on('webrtc-answer', ({ answer }) => handleAnswer(answer));
+    socketService.socket.on('webrtc-ice-candidate', ({ candidate }) => handleIceCandidate(candidate));
+  };
+
   const toggleAudio = () => {
     if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsAudioEnabled(audioTrack.enabled);
+      const track = localStreamRef.current.getAudioTracks()[0];
+      if (track) {
+        track.enabled = !track.enabled;
+        setIsAudioEnabled(track.enabled);
       }
     }
   };
 
-  /**
-   * Toggle video
-   */
   const toggleVideo = async () => {
     if (!isVideoEnabled) {
-      // Enable video
       try {
         const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         const videoTrack = videoStream.getVideoTracks()[0];
-        
         if (localStreamRef.current) {
           localStreamRef.current.addTrack(videoTrack);
           setLocalStream(localStreamRef.current);
-          
-          // Add track to peer connection if it exists
           if (peerConnection.current) {
             peerConnection.current.addTrack(videoTrack, localStreamRef.current);
           }
         }
-        
         setIsVideoEnabled(true);
       } catch (error) {
         console.error('Error enabling video:', error);
       }
     } else {
-      // Disable video
       if (localStreamRef.current) {
         const videoTrack = localStreamRef.current.getVideoTracks()[0];
         if (videoTrack) {
@@ -189,31 +182,19 @@ const useWebRTC = (bookingId) => {
     }
   };
 
-  /**
-   * Cleanup
-   */
   const cleanup = () => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
     }
     if (peerConnection.current) {
       peerConnection.current.close();
+      peerConnection.current = null;
     }
     setLocalStream(null);
     setRemoteStream(null);
     setIsConnected(false);
   };
-
-  // Setup WebRTC signaling listeners
-  useEffect(() => {
-    socketService.onOffer(({ offer }) => handleOffer(offer));
-    socketService.onAnswer(({ answer }) => handleAnswer(answer));
-    socketService.onIceCandidate(({ candidate }) => handleIceCandidate(candidate));
-
-    return () => {
-      cleanup();
-    };
-  }, [bookingId]);
 
   return {
     localStream,
@@ -225,7 +206,8 @@ const useWebRTC = (bookingId) => {
     createOffer,
     toggleAudio,
     toggleVideo,
-    cleanup
+    cleanup,
+    registerSignalingListeners,
   };
 };
 

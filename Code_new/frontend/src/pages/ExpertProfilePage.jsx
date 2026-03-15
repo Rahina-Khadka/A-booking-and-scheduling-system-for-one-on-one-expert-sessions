@@ -76,8 +76,16 @@ const ExpertProfilePage = () => {
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
           <div className="border-b pb-6 mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{expert.name}</h1>
-            <p className="text-gray-600">{expert.email}</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl font-bold text-gray-900">{expert.name}</h1>
+              {expert.verificationStatus === 'approved' && (
+                <span className="flex items-center gap-1 bg-green-100 text-green-700 text-sm px-3 py-1 rounded-full font-semibold">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                  Verified Expert
+                </span>
+              )}
+            </div>
+            <p className="text-gray-600 mt-1">{expert.email}</p>
             
             <div className="flex items-center mt-4">
               <span className="text-yellow-500 text-xl">★</span>

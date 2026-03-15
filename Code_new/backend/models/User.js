@@ -81,7 +81,25 @@ const userSchema = new mongoose.Schema({
   totalRatings: {
     type: Number,
     default: 0
-  }
+  },
+  documents: {
+    resume: { type: String, default: '' },
+    certificate: { type: String, default: '' },
+    experienceProof: { type: String, default: '' },
+    governmentId: { type: String, default: '' }
+  },
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  portfolio: [{
+    title: { type: String, trim: true },
+    description: { type: String, trim: true },
+    skills: [{ type: String, trim: true }],
+    link: { type: String, trim: true },
+    image: { type: String, default: '' }
+  }]
 }, {
   timestamps: true
 });

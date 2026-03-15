@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useWebRTC from '../hooks/useWebRTC';
@@ -7,10 +7,6 @@ import socketService from '../services/socketService';
 import messageService from '../services/messageService';
 import bookingService from '../services/bookingService';
 
-/**
- * Session Room Page Component
- * Real-time communication room with chat, audio, and video
- */
 const SessionRoomPage = () => {
   const { bookingId } = useParams();
   const { user } = useAuth();
@@ -26,6 +22,8 @@ const SessionRoomPage = () => {
   const messagesEndRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  // Track whether socket listeners have been registered to avoid duplicates
+  const listenersRegistered = useRef(false);
 
   const {
     localStream,
@@ -37,19 +35,27 @@ const SessionRoomPage = () => {
     createOffer,
     toggleAudio,
     toggleVideo,
-    cleanup
+    cleanup,
+    registerSignalingListeners,
   } = useWebRTC(bookingId);
 
   useEffect(() => {
     initializeSession();
-
     return () => {
       cleanup();
+      // Remove all socket listeners before disconnecting
+      if (socketService.socket) {
+        socketService.socket.off('receive-message');
+        socketService.socket.off('user-joined');
+        socketService.socket.off('user-left');
+        socketService.socket.off('webrtc-offer');
+        socketService.socket.off('webrtc-answer');
+        socketService.socket.off('webrtc-ice-candidate');
+      }
       socketService.disconnect();
     };
   }, [bookingId]);
 
-  // Update video elements when streams change
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -62,14 +68,26 @@ const SessionRoomPage = () => {
     }
   }, [remoteStream]);
 
-  // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const addSystemMessage = useCallback((text) => {
+    setMessages(prev => {
+      // Prevent duplicate system messages
+      const last = prev[prev.length - 1];
+      if (last?.type === 'system' && last?.message === text) return prev;
+      return [...prev, {
+        _id: Date.now().toString(),
+        message: text,
+        type: 'system',
+        createdAt: new Date()
+      }];
+    });
+  }, []);
+
   const initializeSession = async () => {
     try {
-      // Fetch booking details
       const bookings = await bookingService.getBookings();
       const currentBooking = bookings.find(b => b._id === bookingId);
 
@@ -79,8 +97,7 @@ const SessionRoomPage = () => {
         return;
       }
 
-      // Check if user is authorized
-      const isParticipant = 
+      const isParticipant =
         currentBooking.userId._id === user._id ||
         currentBooking.expertId._id === user._id;
 
@@ -92,9 +109,38 @@ const SessionRoomPage = () => {
 
       setBooking(currentBooking);
 
-      // Connect to socket
-      const token = localStorage.getItem('token');
+      // Connect socket
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       socketService.connect(token);
+
+      // Wait a tick for socket to establish before registering listeners
+      await new Promise(r => setTimeout(r, 300));
+
+      // Guard: only register listeners once
+      if (!listenersRegistered.current) {
+        listenersRegistered.current = true;
+
+        // Chat messages — deduplicate by _id
+        socketService.socket.on('receive-message', (message) => {
+          setMessages(prev => {
+            if (prev.some(m => m._id === message._id)) return prev;
+            return [...prev, message];
+          });
+        });
+
+        socketService.socket.on('user-joined', () => {
+          setIsOtherUserOnline(true);
+          addSystemMessage('Other participant joined the session');
+        });
+
+        socketService.socket.on('user-left', () => {
+          setIsOtherUserOnline(false);
+          addSystemMessage('Other participant left the session');
+        });
+
+        // Register WebRTC signaling listeners now that socket is ready
+        registerSignalingListeners();
+      }
 
       // Join room
       socketService.joinRoom(bookingId);
@@ -103,41 +149,13 @@ const SessionRoomPage = () => {
       const previousMessages = await messageService.getMessages(bookingId);
       setMessages(previousMessages);
 
-      // Listen for new messages
-      socketService.onMessage((message) => {
-        setMessages(prev => [...prev, message]);
-      });
-
-      // Listen for user joined/left
-      socketService.onUserJoined(() => {
-        setIsOtherUserOnline(true);
-        addSystemMessage('Other participant joined the session');
-      });
-
-      socketService.onUserLeft(() => {
-        setIsOtherUserOnline(false);
-        addSystemMessage('Other participant left the session');
-      });
-
-      // Initialize audio (video off by default)
       await initializeMedia(true, false);
-
       setLoading(false);
     } catch (err) {
       console.error('Error initializing session:', err);
       setError('Failed to initialize session');
       setLoading(false);
     }
-  };
-
-  const addSystemMessage = (text) => {
-    const systemMsg = {
-      _id: Date.now().toString(),
-      message: text,
-      type: 'system',
-      createdAt: new Date()
-    };
-    setMessages(prev => [...prev, systemMsg]);
   };
 
   const handleSendMessage = (e) => {
@@ -162,11 +180,9 @@ const SessionRoomPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <Navbar />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-xl text-gray-600">Loading session...</div>
-        </div>
+        <div className="text-white text-lg">Loading session...</div>
       </div>
     );
   }
@@ -177,42 +193,36 @@ const SessionRoomPage = () => {
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 pt-24 pb-8 text-center">
           <h2 className="text-2xl font-bold text-red-600 mb-4">{error}</h2>
-          <Link to="/bookings" className="text-primary hover:underline">
-            Back to Bookings
-          </Link>
+          <Link to="/bookings" className="text-indigo-600 hover:underline">Back to Bookings</Link>
         </div>
       </div>
     );
   }
 
-  const otherParticipant = user._id === booking.userId._id 
-    ? booking.expertId 
+  const otherParticipant = user._id === booking.userId._id
+    ? booking.expertId
     : booking.userId;
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 flex flex-col">
       <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 py-4">
+
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 pt-20 pb-4">
         {/* Header */}
-        <div className="bg-gray-800 rounded-lg p-4 mb-4 flex justify-between items-center">
+        <div className="bg-gray-800 rounded-lg p-3 mb-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-white">
-              Session with {otherParticipant.name}
-            </h1>
-            <p className="text-gray-400 text-sm">
+            <h1 className="text-base font-bold text-white">Session with {otherParticipant.name}</h1>
+            <p className="text-gray-400 text-xs">
               {new Date(booking.date).toLocaleDateString()} • {booking.startTime}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className={`flex items-center gap-2 ${isOtherUserOnline ? 'text-green-400' : 'text-gray-400'}`}>
-              <span className={`w-3 h-3 rounded-full ${isOtherUserOnline ? 'bg-green-400' : 'bg-gray-400'}`}></span>
-              {isOtherUserOnline ? 'Online' : 'Offline'}
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center gap-1.5 text-sm ${isOtherUserOnline ? 'text-green-400' : 'text-gray-400'}`}>
+              <span className={`w-2 h-2 rounded-full ${isOtherUserOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+              {isOtherUserOnline ? 'Online' : 'Waiting...'}
             </span>
-            <button
-              onClick={handleEndSession}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-            >
+            <button onClick={handleEndSession}
+              className="bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-sm font-medium">
               End Session
             </button>
           </div>
@@ -221,38 +231,29 @@ const SessionRoomPage = () => {
         <div className="grid lg:grid-cols-3 gap-4">
           {/* Video Section */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Remote Video */}
             <div className="bg-gray-800 rounded-lg overflow-hidden aspect-video relative">
               {remoteStream ? (
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center text-gray-400">
                     <div className="text-6xl mb-4">👤</div>
                     <p>Waiting for {otherParticipant.name} to join...</p>
+                    {isOtherUserOnline && !isConnected && (
+                      <p className="text-green-400 text-sm mt-2">
+                        They're here — click "Start Call" to connect
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Local Video (Picture-in-Picture) */}
               {localStream && (
                 <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-700 rounded-lg overflow-hidden">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
+                  <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                 </div>
               )}
 
-              {/* Connection Status */}
               {isConnected && (
                 <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm">
                   Connected
@@ -263,31 +264,21 @@ const SessionRoomPage = () => {
             {/* Controls */}
             <div className="bg-gray-800 rounded-lg p-4">
               <div className="flex justify-center gap-4">
-                <button
-                  onClick={toggleAudio}
+                <button onClick={toggleAudio}
                   className={`p-4 rounded-full ${isAudioEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                  title={isAudioEnabled ? 'Mute' : 'Unmute'}
-                >
-                  <span className="text-white text-xl">
-                    {isAudioEnabled ? '🎤' : '🔇'}
-                  </span>
+                  title={isAudioEnabled ? 'Mute' : 'Unmute'}>
+                  <span className="text-white text-xl">{isAudioEnabled ? '🎤' : '🔇'}</span>
                 </button>
 
-                <button
-                  onClick={toggleVideo}
+                <button onClick={toggleVideo}
                   className={`p-4 rounded-full ${isVideoEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
-                  title={isVideoEnabled ? 'Stop Video' : 'Start Video'}
-                >
-                  <span className="text-white text-xl">
-                    {isVideoEnabled ? '📹' : '📷'}
-                  </span>
+                  title={isVideoEnabled ? 'Stop Video' : 'Start Video'}>
+                  <span className="text-white text-xl">{isVideoEnabled ? '📹' : '📷'}</span>
                 </button>
 
                 {!isConnected && isOtherUserOnline && (
-                  <button
-                    onClick={handleStartCall}
-                    className="px-6 py-3 bg-green-600 text-white rounded-full hover:bg-green-700"
-                  >
+                  <button onClick={handleStartCall}
+                    className="px-6 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 font-medium">
                     Start Call
                   </button>
                 )}
@@ -301,17 +292,14 @@ const SessionRoomPage = () => {
               <h2 className="text-lg font-semibold text-white">Chat</h2>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((msg) => (
                 <div key={msg._id}>
                   {msg.type === 'system' ? (
-                    <div className="text-center text-gray-400 text-sm italic">
-                      {msg.message}
-                    </div>
+                    <div className="text-center text-gray-400 text-sm italic">{msg.message}</div>
                   ) : (
                     <div className={`flex ${msg.senderId === user._id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs ${msg.senderId === user._id ? 'bg-primary' : 'bg-gray-700'} text-white rounded-lg p-3`}>
+                      <div className={`max-w-xs ${msg.senderId === user._id ? 'bg-indigo-600' : 'bg-gray-700'} text-white rounded-lg p-3`}>
                         <p className="text-xs text-gray-300 mb-1">{msg.senderName}</p>
                         <p className="break-words">{msg.message}</p>
                         <p className="text-xs text-gray-300 mt-1">
@@ -325,7 +313,6 @@ const SessionRoomPage = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
             <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-700">
               <div className="flex gap-2">
                 <input
@@ -333,12 +320,10 @@ const SessionRoomPage = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
-                  className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <button
-                  type="submit"
-                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
-                >
+                <button type="submit"
+                  className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
                   Send
                 </button>
               </div>

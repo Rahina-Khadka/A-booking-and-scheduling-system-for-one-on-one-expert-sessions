@@ -1,23 +1,52 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import userService from '../services/userService';
+
+const DOC_FIELDS = [
+  { key: 'resume', label: 'Resume / CV', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'certificate', label: 'Degree Certificate', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'experienceProof', label: 'Experience Proof', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'governmentId', label: 'Government ID (optional)', required: false, accept: '.pdf,image/*' },
+];
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [documents, setDocuments] = useState({ resume: '', certificate: '', experienceProof: '', governmentId: '' });
+  const [docNames, setDocNames] = useState({ resume: '', certificate: '', experienceProof: '', governmentId: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const fileRefs = useRef({});
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleDocUpload = async (key, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const b64 = await userService.fileToBase64(file);
+    setDocuments(prev => ({ ...prev, [key]: b64 }));
+    setDocNames(prev => ({ ...prev, [key]: file.name }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (formData.role === 'expert') {
+      if (!documents.resume || !documents.certificate || !documents.experienceProof) {
+        setError('Please upload all required documents (Resume, Certificate, Experience Proof).');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const userData = await register(formData);
+      const payload = { ...formData };
+      if (formData.role === 'expert') payload.documents = documents;
+      const userData = await register(payload);
       if (userData.role === 'expert') navigate('/expert-dashboard');
       else navigate('/dashboard');
     } catch (err) {
@@ -106,6 +135,50 @@ const RegisterPage = () => {
                 ))}
               </div>
             </div>
+
+            {/* Document uploads — only for experts */}
+            {formData.role === 'expert' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/50 space-y-3"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-indigo-600 text-lg">📋</span>
+                  <p className="text-sm font-semibold text-gray-800">Verification Documents</p>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Upload your documents so our admin can verify your credentials. Your profile will be visible after approval.
+                </p>
+                {DOC_FIELDS.map(({ key, label, required, accept }) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      {label} {required && <span className="text-red-500">*</span>}
+                    </label>
+                    <div
+                      onClick={() => fileRefs.current[key]?.click()}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all text-sm ${
+                        documents[key]
+                          ? 'border-green-400 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-500'
+                      }`}
+                    >
+                      <span className="text-base">{documents[key] ? '✅' : '📎'}</span>
+                      <span className="truncate flex-1">{docNames[key] || 'Click to upload'}</span>
+                      {documents[key] && <span className="text-xs text-green-600 font-medium flex-shrink-0">Uploaded</span>}
+                    </div>
+                    <input
+                      ref={el => fileRefs.current[key] = el}
+                      type="file" accept={accept}
+                      onChange={e => handleDocUpload(key, e)}
+                      className="hidden"
+                    />
+                  </div>
+                ))}
+              </motion.div>
+            )}
 
             <motion.button
               type="submit" disabled={loading}

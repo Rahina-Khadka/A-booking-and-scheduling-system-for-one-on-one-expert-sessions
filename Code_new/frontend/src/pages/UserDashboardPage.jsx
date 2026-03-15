@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
-import ExpertCard from '../components/ExpertCard';
 import userService from '../services/userService';
 import expertService from '../services/expertService';
 import bookingService from '../services/bookingService';
+import socketService from '../services/socketService';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -45,10 +45,25 @@ const UserDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [expertWaiting, setExpertWaiting] = useState(null); // { bookingId, expertName }
   const fileInputRef = useRef(null);
   const [form, setForm] = useState({ name: '', phone: '', bio: '', interests: [], profilePicture: '' });
 
   useEffect(() => { load(); }, []);
+
+  // Connect socket for real-time expert-waiting notifications
+  useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) return;
+    socketService.connect(token);
+    socketService.onExpertWaiting(({ bookingId, expertName }) => {
+      setExpertWaiting({ bookingId, expertName });
+    });
+    return () => {
+      socketService.offExpertWaiting();
+      socketService.disconnect();
+    };
+  }, []);
 
   const load = async () => {
     try {
@@ -118,6 +133,37 @@ const UserDashboardPage = () => {
           </button>
         </div>
 
+        {/* Expert Waiting Alert Banner */}
+        <AnimatePresence>
+          {expertWaiting && (
+            <motion.div
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              className="mb-6 flex items-center justify-between gap-4 bg-green-500 text-white px-5 py-4 rounded-2xl shadow-lg"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-white animate-ping flex-shrink-0" />
+                <p className="font-semibold text-sm sm:text-base">
+                  🎉 Your expert is waiting! Join the session now.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Link
+                  to={`/session/${expertWaiting.bookingId}`}
+                  className="bg-white text-green-600 font-bold text-sm px-4 py-2 rounded-xl hover:bg-green-50 transition-colors"
+                >
+                  Join Now →
+                </Link>
+                <button
+                  onClick={() => setExpertWaiting(null)}
+                  className="text-white/70 hover:text-white text-xl leading-none"
+                >×</button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon="✅" label="Completed Sessions" value={completed} color="bg-blue-50 border-blue-100 text-blue-700" />
@@ -149,7 +195,18 @@ const UserDashboardPage = () => {
                           <p className="text-xs text-gray-400">{new Date(b.date).toLocaleDateString()} · {b.startTime}</p>
                         </div>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColors[b.status]}`}>{b.status}</span>
+                      <div className="flex items-center gap-2">
+                        {b.status === 'confirmed' && (
+                          <Link
+                            to={`/session/${b._id}`}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition-colors flex items-center gap-1"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            Join
+                          </Link>
+                        )}
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColors[b.status]}`}>{b.status}</span>
+                      </div>
                     </div>
                   ))}
                 </div>

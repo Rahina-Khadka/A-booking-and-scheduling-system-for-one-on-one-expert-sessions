@@ -21,14 +21,9 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-/**
- * Response interceptor for error handling
- */
 api.interceptors.response.use(
   (response) => response,
   (error) => {

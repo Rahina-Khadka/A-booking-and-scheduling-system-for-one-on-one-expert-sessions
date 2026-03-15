@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import notificationService from '../services/notificationService';
 
-/**
- * Notification Bell Component
- * Displays notifications in a dropdown
- */
+const TYPE_CONFIG = {
+  booking_confirmed:  { icon: '✅', color: 'bg-green-100 text-green-600' },
+  booking_cancelled:  { icon: '❌', color: 'bg-red-100 text-red-600' },
+  booking_rejected:   { icon: '⛔', color: 'bg-red-100 text-red-600' },
+  session_reminder:   { icon: '⏰', color: 'bg-blue-100 text-blue-600' },
+  new_message:        { icon: '💬', color: 'bg-cyan-100 text-cyan-600' },
+  new_review:         { icon: '⭐', color: 'bg-amber-100 text-amber-600' },
+  verification_update:{ icon: '🛡️', color: 'bg-purple-100 text-purple-600' },
+  new_booking_request:{ icon: '📋', color: 'bg-orange-100 text-orange-600' },
+};
+
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -15,29 +23,19 @@ const NotificationBell = () => {
 
   useEffect(() => {
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
-
-    // Close dropdown when clicking outside
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
+    const interval = setInterval(fetchUnreadCount, 30000);
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => { clearInterval(interval); document.removeEventListener('mousedown', handleClickOutside); };
   }, []);
 
   const fetchUnreadCount = async () => {
     try {
       const data = await notificationService.getUnreadCount();
       setUnreadCount(data.count);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
+    } catch {}
   };
 
   const fetchNotifications = async () => {
@@ -45,169 +43,141 @@ const NotificationBell = () => {
       setLoading(true);
       const data = await notificationService.getNotifications();
       setNotifications(data);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   };
 
   const handleToggle = () => {
-    if (!isOpen) {
-      fetchNotifications();
-    }
+    if (!isOpen) fetchNotifications();
     setIsOpen(!isOpen);
   };
 
   const handleMarkAsRead = async (id) => {
     try {
       await notificationService.markAsRead(id);
-      setNotifications(notifications.map(n => 
-        n._id === id ? { ...n, isRead: true } : n
-      ));
-      setUnreadCount(Math.max(0, unreadCount - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setUnreadCount(c => Math.max(0, c - 1));
+    } catch {}
   };
 
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
+    } catch {}
   };
 
   const handleDelete = async (id) => {
     try {
+      const n = notifications.find(n => n._id === id);
       await notificationService.deleteNotification(id);
-      setNotifications(notifications.filter(n => n._id !== id));
-      const notification = notifications.find(n => n._id === id);
-      if (!notification.isRead) {
-        setUnreadCount(Math.max(0, unreadCount - 1));
-      }
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-    }
+      setNotifications(prev => prev.filter(n => n._id !== id));
+      if (!n?.isRead) setUnreadCount(c => Math.max(0, c - 1));
+    } catch {}
   };
 
-  const getNotificationIcon = (type) => {
-    const icons = {
-      booking_confirmed: '✅',
-      booking_cancelled: '❌',
-      booking_rejected: '⛔',
-      session_reminder: '⏰',
-      new_message: '💬',
-      new_review: '⭐'
-    };
-    return icons[type] || '🔔';
+  const timeAgo = (date) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell Icon */}
-      <button
-        onClick={handleToggle}
-        className="relative p-2 text-gray-700 hover:text-primary focus:outline-none"
-      >
-        <span className="text-2xl">🔔</span>
+      <button onClick={handleToggle}
+        className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors focus:outline-none">
+        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          <motion.span
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none"
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          </motion.span>
         )}
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 max-h-[600px] flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b flex justify-between items-center">
-            <h3 className="font-semibold text-lg">Notifications</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                className="text-sm text-primary hover:underline"
-              >
-                Mark all as read
-              </button>
-            )}
-          </div>
-
-          {/* Notifications List */}
-          <div className="overflow-y-auto flex-1">
-            {loading ? (
-              <div className="p-4 text-center text-gray-500">Loading...</div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <div className="text-4xl mb-2">🔕</div>
-                <p>No notifications</p>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-900 text-sm">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">{unreadCount}</span>
+                )}
               </div>
-            ) : (
-              <div>
-                {notifications.map((notification) => (
-                  <div
-                    key={notification._id}
-                    className={`p-4 border-b hover:bg-gray-50 ${
-                      !notification.isRead ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">
-                        {getNotificationIcon(notification.type)}
-                      </span>
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllAsRead} className="text-xs text-indigo-600 hover:underline font-medium">
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-10 text-center">
+                  <p className="text-3xl mb-2">🔕</p>
+                  <p className="text-sm text-gray-400">No notifications yet</p>
+                </div>
+              ) : (
+                notifications.map(n => {
+                  const cfg = TYPE_CONFIG[n.type] || { icon: '🔔', color: 'bg-gray-100 text-gray-600' };
+                  return (
+                    <div key={n._id}
+                      className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-indigo-50/40' : ''}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5 ${cfg.color}`}>
+                        {cfg.icon}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-medium text-sm">{notification.title}</h4>
-                          <button
-                            onClick={() => handleDelete(notification._id)}
-                            className="text-gray-400 hover:text-red-500 ml-2"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {notification.message}
-                        </p>
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs text-gray-400">
-                            {new Date(notification.createdAt).toLocaleString()}
-                          </span>
-                          <div className="flex gap-2">
-                            {notification.link && (
-                              <Link
-                                to={notification.link}
-                                onClick={() => {
-                                  handleMarkAsRead(notification._id);
-                                  setIsOpen(false);
-                                }}
-                                className="text-xs text-primary hover:underline"
-                              >
-                                View
-                              </Link>
-                            )}
-                            {!notification.isRead && (
-                              <button
-                                onClick={() => handleMarkAsRead(notification._id)}
-                                className="text-xs text-gray-500 hover:text-primary"
-                              >
-                                Mark as read
-                              </button>
-                            )}
-                          </div>
+                        <p className={`text-xs font-semibold ${!n.isRead ? 'text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-xs text-gray-400">{timeAgo(n.createdAt)}</span>
+                          {n.link && (
+                            <Link to={n.link} onClick={() => { handleMarkAsRead(n._id); setIsOpen(false); }}
+                              className="text-xs text-indigo-600 font-medium hover:underline">
+                              View →
+                            </Link>
+                          )}
+                          {!n.isRead && (
+                            <button onClick={() => handleMarkAsRead(n._id)} className="text-xs text-gray-400 hover:text-indigo-600">
+                              Mark read
+                            </button>
+                          )}
                         </div>
                       </div>
+                      <button onClick={() => handleDelete(n._id)}
+                        className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-lg leading-none mt-0.5">
+                        ×
+                      </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                  );
+                })
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

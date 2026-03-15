@@ -13,7 +13,9 @@ class SocketService {
    * Connect to socket server
    */
   connect(token) {
-    const serverUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    // Strip trailing /api from the API URL to get the socket server root
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const serverUrl = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl.replace(/\/api$/, '');
     
     this.socket = io(serverUrl, {
       auth: {
@@ -79,6 +81,24 @@ class SocketService {
   onUserJoined(callback) {
     if (this.socket) {
       this.socket.on('user-joined', callback);
+    }
+  }
+
+  /**
+   * Listen for expert-waiting event (fired when expert joins a session room)
+   */
+  onExpertWaiting(callback) {
+    if (this.socket) {
+      this.socket.on('expert-waiting', callback);
+    }
+  }
+
+  /**
+   * Remove expert-waiting listener
+   */
+  offExpertWaiting() {
+    if (this.socket) {
+      this.socket.off('expert-waiting');
     }
   }
 

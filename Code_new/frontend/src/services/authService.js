@@ -5,9 +5,6 @@ import api from './api';
  * Handles user registration, login, and token management
  */
 const authService = {
-  /**
-   * Register new user
-   */
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
     if (response.data.token) {
@@ -17,9 +14,6 @@ const authService = {
     return response.data;
   },
 
-  /**
-   * Login user
-   */
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     if (response.data.token) {
@@ -29,17 +23,13 @@ const authService = {
     return response.data;
   },
 
-  /**
-   * Logout user
-   */
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
   },
 
-  /**
-   * Get current user from localStorage
-   */
   getCurrentUser: () => {
     const user = localStorage.getItem('user');
     return user ? JSON.parse(user) : null;

@@ -44,6 +44,10 @@ const updateProfile = async (req, res) => {
         user.availability = req.body.availability || user.availability;
         if (req.body.hourlyRate !== undefined) user.hourlyRate = req.body.hourlyRate;
         if (req.body.isOnline !== undefined) user.isOnline = req.body.isOnline;
+        if (req.body.documents) {
+          user.documents = { ...user.documents.toObject?.() || user.documents, ...req.body.documents };
+        }
+        if (req.body.portfolio !== undefined) user.portfolio = req.body.portfolio;
       }
 
       const updatedUser = await user.save();

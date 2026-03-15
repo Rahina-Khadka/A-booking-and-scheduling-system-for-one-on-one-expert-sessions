@@ -8,6 +8,7 @@ import bookingService from '../services/bookingService';
 import reviewService from '../services/reviewService';
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const EMPTY_PROJECT = { title: '', description: '', skills: [], link: '', image: '' };
 const SESSION_RATE = 20;
 
 const statusColors = {
@@ -44,24 +45,33 @@ const ExpertDashboardPage = () => {
   const [availability, setAvailability] = useState(
     DAYS.map(day => ({ day, enabled: false, startTime: '09:00', endTime: '17:00' }))
   );
+  const [portfolio, setPortfolio] = useState([]);
+  const [portfolioForm, setPortfolioForm] = useState(EMPTY_PROJECT);
+  const [editingPortfolioIdx, setEditingPortfolioIdx] = useState(null);
+  const portfolioImgRef = useRef(null);
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     try {
-      const [p, b] = await Promise.all([userService.getProfile(), bookingService.getBookings()]);
+      // Get profile first (need _id for reviews), then fire bookings + reviews in parallel
+      const p = await userService.getProfile();
+      const [b, r] = await Promise.all([
+        bookingService.getBookings(),
+        reviewService.getExpertReviews(p._id).catch(() => [])
+      ]);
       setProfile(p);
       setBookings(b);
+      setReviews(r);
       setForm({ name: p.name||'', phone: p.phone||'', bio: p.bio||'', expertise: p.expertise||[], profilePicture: p.profilePicture||'', hourlyRate: p.hourlyRate||0, isOnline: p.isOnline||false });
       setAvatarPreview(p.profilePicture || null);
+      setPortfolio(p.portfolio || []);
       if (p.availability?.length > 0) {
         setAvailability(DAYS.map(day => {
           const s = p.availability.find(a => a.day === day);
           return s ? { day, enabled: true, startTime: s.slots?.[0]?.startTime||'09:00', endTime: s.slots?.[0]?.endTime||'17:00' } : { day, enabled: false, startTime:'09:00', endTime:'17:00' };
         }));
       }
-      const r = await reviewService.getExpertReviews(p._id);
-      setReviews(r);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -98,6 +108,37 @@ const ExpertDashboardPage = () => {
     catch(e) { alert('Failed to update status'); }
   };
 
+  const handlePortfolioImgUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const b64 = await userService.fileToBase64(file);
+    setPortfolioForm(p => ({ ...p, image: b64 }));
+  };
+
+  const openAddPortfolio = () => { setPortfolioForm(EMPTY_PROJECT); setEditingPortfolioIdx(null); setActiveModal('portfolio'); };
+  const openEditPortfolio = (idx) => { setPortfolioForm({ ...portfolio[idx] }); setEditingPortfolioIdx(idx); setActiveModal('portfolio'); };
+
+  const handleSavePortfolioItem = async () => {
+    if (!portfolioForm.title.trim()) { alert('Project title is required'); return; }
+    const updated = editingPortfolioIdx !== null
+      ? portfolio.map((p, i) => i === editingPortfolioIdx ? portfolioForm : p)
+      : [...portfolio, portfolioForm];
+    try {
+      const saved = await userService.updateProfile({ ...form, portfolio: updated });
+      setPortfolio(saved.portfolio || updated);
+      setActiveModal(null);
+    } catch(e) { alert('Failed to save portfolio item'); }
+  };
+
+  const handleDeletePortfolioItem = async (idx) => {
+    if (!window.confirm('Remove this portfolio item?')) return;
+    const updated = portfolio.filter((_, i) => i !== idx);
+    try {
+      const saved = await userService.updateProfile({ ...form, portfolio: updated });
+      setPortfolio(saved.portfolio || updated);
+    } catch(e) { alert('Failed to delete portfolio item'); }
+  };
+
   const toggleOnline = async () => {
     const newVal = !form.isOnline;
     setForm(p => ({ ...p, isOnline: newVal }));
@@ -120,6 +161,27 @@ const ExpertDashboardPage = () => {
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+
+        {/* Verification Status Banner */}
+        {profile?.role === 'expert' && profile?.verificationStatus !== 'approved' && (
+          <div className={`mb-6 rounded-2xl border px-5 py-4 flex items-start gap-3 ${
+            profile.verificationStatus === 'rejected'
+              ? 'bg-red-50 border-red-200'
+              : 'bg-yellow-50 border-yellow-200'
+          }`}>
+            <span className="text-2xl flex-shrink-0">{profile.verificationStatus === 'rejected' ? '❌' : '⏳'}</span>
+            <div>
+              <p className={`font-semibold text-sm ${profile.verificationStatus === 'rejected' ? 'text-red-700' : 'text-yellow-700'}`}>
+                {profile.verificationStatus === 'rejected' ? 'Verification Rejected' : 'Pending Verification'}
+              </p>
+              <p className={`text-xs mt-0.5 ${profile.verificationStatus === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>
+                {profile.verificationStatus === 'rejected'
+                  ? 'Your verification was rejected. Please contact support or re-register with valid documents.'
+                  : 'Your account is under review. You will be visible to users once an admin approves your credentials.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -158,7 +220,7 @@ const ExpertDashboardPage = () => {
         </div>
 
         {/* Action cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {[
             { icon:'📋', label:'Session Requests', desc:`${pending.length} pending`, color:'bg-orange-500', action: () => setActiveModal('requests') },
             { icon:'📅', label:'Manage Availability', desc:'Set your schedule', color:'bg-green-500', action: () => setActiveModal('schedule') },
@@ -402,6 +464,118 @@ const ExpertDashboardPage = () => {
                 <button type="button" onClick={() => setActiveModal(null)} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-colors">Cancel</button>
               </div>
             </form>
+          </Modal>
+        )}
+
+        {/* Portfolio List */}
+        {activeModal === 'portfolioList' && (
+          <Modal title="My Portfolio" onClose={() => setActiveModal(null)}>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-gray-500">{portfolio.length} project{portfolio.length !== 1 ? 's' : ''}</p>
+              <button onClick={openAddPortfolio}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">
+                + Add Project
+              </button>
+            </div>
+            {portfolio.length > 0 ? (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {portfolio.map((item, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    {item.image ? (
+                      <img src={item.image} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-400 to-cyan-400 flex items-center justify-center text-white text-xl flex-shrink-0">🖼️</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{item.title}</p>
+                      {item.description && <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{item.description}</p>}
+                      {item.skills?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {item.skills.slice(0, 3).map((s, si) => (
+                            <span key={si} className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button onClick={() => openEditPortfolio(i)} className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 text-sm">✏️</button>
+                      <button onClick={() => handleDeletePortfolioItem(i)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 text-sm">🗑️</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-4xl mb-2">🗂️</p>
+                <p className="text-gray-400 text-sm mb-4">No portfolio items yet.</p>
+                <button onClick={openAddPortfolio} className="px-5 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">
+                  Add Your First Project
+                </button>
+              </div>
+            )}
+          </Modal>
+        )}
+
+        {/* Portfolio Add/Edit */}
+        {activeModal === 'portfolio' && (
+          <Modal title={editingPortfolioIdx !== null ? 'Edit Project' : 'Add Portfolio Project'} onClose={() => setActiveModal(null)}>
+            <div className="space-y-4">
+              {/* Project image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Project Image (optional)</label>
+                <div
+                  onClick={() => portfolioImgRef.current?.click()}
+                  className="h-36 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-indigo-300 transition-colors overflow-hidden bg-gray-50"
+                >
+                  {portfolioForm.image ? (
+                    <img src={portfolioForm.image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-3xl mb-1">🖼️</p>
+                      <p className="text-xs text-gray-400">Click to upload image</p>
+                    </div>
+                  )}
+                </div>
+                <input ref={portfolioImgRef} type="file" accept="image/*" onChange={handlePortfolioImgUpload} className="hidden" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Title <span className="text-red-500">*</span></label>
+                <input type="text" value={portfolioForm.title}
+                  onChange={e => setPortfolioForm(p => ({ ...p, title: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+                  placeholder="e.g. E-commerce Platform" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea value={portfolioForm.description}
+                  onChange={e => setPortfolioForm(p => ({ ...p, description: e.target.value }))}
+                  rows="3" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm resize-none"
+                  placeholder="Describe what you built and your role..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Skills Used (comma-separated)</label>
+                <input type="text"
+                  value={portfolioForm.skills?.join(', ') || ''}
+                  onChange={e => setPortfolioForm(p => ({ ...p, skills: e.target.value.split(',').map(v => v.trim()).filter(Boolean) }))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+                  placeholder="React, Node.js, MongoDB" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Link (optional)</label>
+                <input type="url" value={portfolioForm.link}
+                  onChange={e => setPortfolioForm(p => ({ ...p, link: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+                  placeholder="https://github.com/..." />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={handleSavePortfolioItem} className="flex-1 bg-indigo-500 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-600 transition-colors text-sm">
+                  {editingPortfolioIdx !== null ? 'Update Project' : 'Add Project'}
+                </button>
+                <button onClick={() => setActiveModal('portfolioList')} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-colors text-sm">
+                  Cancel
+                </button>
+              </div>
+            </div>
           </Modal>
         )}
 

@@ -10,7 +10,7 @@ const getExperts = async (req, res) => {
   try {
     const { expertise, search } = req.query;
     
-    let query = { role: 'expert' };
+    let query = { role: 'expert', verificationStatus: 'approved' };
 
     // Filter by expertise if provided
     if (expertise) {
@@ -23,7 +23,7 @@ const getExperts = async (req, res) => {
     }
 
     const experts = await User.find(query)
-      .select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline');
+      .select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio');
 
     res.json(experts);
   } catch (error) {
@@ -40,8 +40,9 @@ const getExpertById = async (req, res) => {
   try {
     const expert = await User.findOne({ 
       _id: req.params.id, 
-      role: 'expert' 
-    }).select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline');
+      role: 'expert',
+      verificationStatus: 'approved'
+    }).select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio');
 
     if (expert) {
       res.json(expert);
