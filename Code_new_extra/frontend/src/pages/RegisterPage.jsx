@@ -1,0 +1,236 @@
+import { useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
+import userService from '../services/userService';
+
+const DOC_FIELDS = [
+  { key: 'resume', label: 'Resume / CV', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'certificate', label: 'Degree Certificate', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'experienceProof', label: 'Experience Proof', required: true, accept: '.pdf,.doc,.docx,image/*' },
+  { key: 'governmentId', label: 'Government ID (optional)', required: false, accept: '.pdf,image/*' },
+];
+
+const GoogleIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24">
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+  </svg>
+);
+
+const RegisterPage = () => {
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [documents, setDocuments] = useState({ resume: '', certificate: '', experienceProof: '', governmentId: '' });
+  const [docNames, setDocNames] = useState({ resume: '', certificate: '', experienceProof: '', governmentId: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const fileRefs = useRef({});
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleGoogleSignUp = () => {
+    const base = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    window.location.href = `${base}/api/auth/google`;
+  };
+
+  const handleDocUpload = async (key, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const b64 = await userService.fileToBase64(file);
+    setDocuments(prev => ({ ...prev, [key]: b64 }));
+    setDocNames(prev => ({ ...prev, [key]: file.name }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.role === 'expert') {
+      if (!documents.resume || !documents.certificate || !documents.experienceProof) {
+        setError('Please upload all required documents (Resume, Certificate, Experience Proof).');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      const payload = { ...formData };
+      if (formData.role === 'expert') payload.documents = documents;
+      const userData = await register(payload);
+      if (userData.role === 'expert') navigate('/expert-dashboard');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-500 flex items-center justify-center px-4 py-10">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-20 right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-10 w-96 h-96 bg-cyan-400/20 rounded-full blur-3xl" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-md"
+      >
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <span className="text-white font-bold text-lg">E</span>
+            </div>
+            <span className="text-2xl font-bold text-white">ExpertBook</span>
+          </Link>
+          <p className="text-white/70 mt-2 text-sm">Start your mentorship journey</p>
+        </div>
+
+        <div className="glass-card rounded-3xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Create your account</h2>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-5 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Google sign-up — only for learners (not experts who need docs) */}
+          {formData.role === 'user' && (
+            <>
+              <motion.button
+                type="button"
+                onClick={handleGoogleSignUp}
+                whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 px-6 py-3 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all font-medium shadow-sm mb-4"
+              >
+                <GoogleIcon />
+                Sign up with Google
+              </motion.button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400">or register with email</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+            </>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <input
+                type="text" name="name" value={formData.name} onChange={handleChange} required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                placeholder="John Doe"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <input
+                type="email" name="email" value={formData.email} onChange={handleChange} required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <input
+                type="password" name="password" value={formData.password} onChange={handleChange} required minLength="6"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                placeholder="Min. 6 characters"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">I want to join as</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'user', label: '🎓 Learner', desc: 'Find a mentor' },
+                  { value: 'expert', label: '👨‍💼 Expert', desc: 'Become a mentor' },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`cursor-pointer rounded-xl border-2 p-3 text-center transition-all ${
+                      formData.role === opt.value
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-indigo-200'
+                    }`}
+                  >
+                    <input type="radio" name="role" value={opt.value} checked={formData.role === opt.value} onChange={handleChange} className="sr-only" />
+                    <div className="text-sm font-semibold text-gray-800">{opt.label}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Document uploads — only for experts */}
+            {formData.role === 'expert' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/50 space-y-3"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-indigo-600 text-lg">📋</span>
+                  <p className="text-sm font-semibold text-gray-800">Verification Documents</p>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Upload your documents so our admin can verify your credentials. Your profile will be visible after approval.
+                </p>
+                {DOC_FIELDS.map(({ key, label, required, accept }) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      {label} {required && <span className="text-red-500">*</span>}
+                    </label>
+                    <div
+                      onClick={() => fileRefs.current[key]?.click()}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all text-sm ${
+                        documents[key]
+                          ? 'border-green-400 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-500'
+                      }`}
+                    >
+                      <span className="text-base">{documents[key] ? '✅' : '📎'}</span>
+                      <span className="truncate flex-1">{docNames[key] || 'Click to upload'}</span>
+                      {documents[key] && <span className="text-xs text-green-600 font-medium flex-shrink-0">Uploaded</span>}
+                    </div>
+                    <input
+                      ref={el => fileRefs.current[key] = el}
+                      type="file" accept={accept}
+                      onChange={e => handleDocUpload(key, e)}
+                      className="hidden"
+                    />
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
+            <motion.button
+              type="submit" disabled={loading}
+              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </motion.button>
+          </form>
+
+          <p className="text-center mt-5 text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link to="/login" className="text-indigo-600 font-semibold hover:underline">Sign in</Link>
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default RegisterPage;
