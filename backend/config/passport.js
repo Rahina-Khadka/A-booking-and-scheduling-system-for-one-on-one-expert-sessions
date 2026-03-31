@@ -4,17 +4,18 @@ const User = require('../models/User');
 
 /**
  * Passport Google OAuth Configuration
- * Handles Google authentication for admin users
+ * Supports all roles: user, expert, admin
+ * Role assignment:
+ *   - Emails in ADMIN_EMAILS → admin
+ *   - Everyone else → user (experts upgrade via admin panel)
  */
 
-// Support both ADMIN_EMAIL (single) and ADMIN_EMAILS (comma-separated list)
 const rawEmails = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
-const authorizedAdminEmails = rawEmails
+const adminEmails = rawEmails
   .split(',')
   .map(e => e.trim().toLowerCase())
   .filter(Boolean);
 
-// Initialize Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -25,58 +26,56 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails[0].value.toLowerCase();
+        const email = profile.emails[0].value.toLowerCase().trim();
+        const googleId = profile.id;
+        const name = profile.displayName;
+        const profilePicture = profile.photos?.[0]?.value || '';
 
-        // Check if email is in authorized admin list
-        if (!authorizedAdminEmails.includes(email)) {
-          return done(null, false, { 
-            message: 'Unauthorized: This email is not authorized for admin access' 
-          });
-        }
+        // Determine role
+        const role = adminEmails.includes(email) ? 'admin' : 'user';
 
-        // Check if user already exists
-        let user = await User.findOne({ email });
+        // Find existing user by googleId or email
+        let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
         if (user) {
-          // Update user role to admin if not already
-          if (user.role !== 'admin') {
-            user.role = 'admin';
-            await user.save();
-          }
+          // Sync googleId and picture if missing
+          let changed = false;
+          if (!user.googleId) { user.googleId = googleId; changed = true; }
+          if (!user.profilePicture && profilePicture) { user.profilePicture = profilePicture; changed = true; }
+          // Promote to admin if email is in admin list
+          if (role === 'admin' && user.role !== 'admin') { user.role = 'admin'; changed = true; }
+          if (changed) await user.save();
           return done(null, user);
         }
 
-        // Create new admin user
+        // Create new user — no password needed for OAuth accounts
         user = await User.create({
-          name: profile.displayName,
-          email: email,
-          password: Math.random().toString(36).slice(-8), // Random password (won't be used)
-          role: 'admin',
-          profilePicture: profile.photos[0]?.value || ''
+          name,
+          email,
+          googleId,
+          password: require('crypto').randomBytes(20).toString('hex'), // never used
+          role,
+          profilePicture
         });
 
+        console.log(`✅ Google OAuth: new ${role} created — ${email}`);
         return done(null, user);
       } catch (error) {
+        console.error('❌ Google OAuth error:', error.message);
         return done(error, null);
       }
     }
   )
 );
 
-// Log configuration status
 if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'your_google_client_id') {
-  console.log('⚠️  Google OAuth not configured. Admin login via Google will not work.');
-  console.log('   To enable: Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file');
+  console.log('⚠️  Google OAuth not configured.');
 } else {
-  console.log('✅ Google OAuth configured successfully');
+  console.log('✅ Google OAuth configured — admin emails:', adminEmails);
 }
 
-// Serialize user for session
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
+passport.serializeUser((user, done) => done(null, user.id));
 
-// Deserialize user from session
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);

@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import BookingCard from '../components/BookingCard';
 import bookingService from '../services/bookingService';
+import SessionReminderBanner from '../components/SessionReminderBanner';
 
 /**
  * Booking History Page Component
@@ -63,6 +64,7 @@ const BookingHistoryPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      <SessionReminderBanner />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
@@ -99,6 +101,7 @@ const BookingHistoryPage = () => {
                 onStatusChange={handleStatusChange}
                 onCancel={handleCancel}
                 isExpert={isExpert}
+                onRescheduled={fetchBookings}
               />
             ))}
           </div>

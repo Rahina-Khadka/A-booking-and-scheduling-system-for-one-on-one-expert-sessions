@@ -1,6 +1,8 @@
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const NotificationService = require('../services/notificationService');
+const { resetReminders } = require('../services/reminderScheduler');
 
 /**
  * @desc    Create new booking
@@ -33,10 +35,19 @@ const createBooking = async (req, res) => {
     await booking.populate('userId', 'name email');
     await booking.populate('expertId', 'name email expertise');
 
-    // Notify expert about new booking request
-    await NotificationService.notifyNewBookingRequest(booking);
+    // Notify expert about new booking request (non-blocking)
+    try {
+      await NotificationService.notifyNewBookingRequest(booking);
+    } catch (notifErr) {
+      console.error('Notification error (non-fatal):', notifErr.message);
+    }
 
-    res.status(201).json(booking);
+    res.status(201).json({
+      ...booking.toObject(),
+      _id: booking._id.toString(),
+      userId: booking.userId ? { ...booking.userId.toObject?.() || booking.userId, _id: booking.userId._id?.toString() || booking.userId._id } : booking.userId,
+      expertId: booking.expertId ? { ...booking.expertId.toObject?.() || booking.expertId, _id: booking.expertId._id?.toString() || booking.expertId._id } : booking.expertId,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -50,9 +61,6 @@ const createBooking = async (req, res) => {
 const getBookings = async (req, res) => {
   try {
     let query = {};
-
-    // If user is an expert, show bookings where they are the expert
-    // Otherwise, show bookings where they are the user
     if (req.user.role === 'expert') {
       query.expertId = req.user._id;
     } else {
@@ -60,11 +68,20 @@ const getBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('userId', 'name email')
-      .populate('expertId', 'name email expertise')
-      .sort({ date: -1 });
+      .populate('userId', 'name email profilePicture')
+      .populate('expertId', 'name email expertise profilePicture')
+      .sort({ date: -1 })
+      .lean(); // plain JS objects — _id is a Buffer/ObjectId that JSON.stringify converts to hex
 
-    res.json(bookings);
+    // Ensure all IDs are plain strings
+    const result = bookings.map(b => ({
+      ...b,
+      _id: b._id.toString(),
+      userId: b.userId ? { ...b.userId, _id: b.userId._id.toString() } : b.userId,
+      expertId: b.expertId ? { ...b.expertId, _id: b.expertId._id.toString() } : b.expertId,
+    }));
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -78,21 +95,33 @@ const getBookings = async (req, res) => {
 const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const { id } = req.params;
+
+    // Validate ID format before hitting the DB
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: `Invalid booking ID: "${id}"` });
+    }
+
+    const booking = await Booking.findById(id);
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Check authorization
-    // Users can cancel their own bookings
-    // Experts can confirm/reject bookings where they are the expert
-    const isUser = booking.userId.toString() === req.user._id.toString();
+    // Compare raw ObjectIds (not populated) — findById returns unpopulated refs
+    const isUser   = booking.userId.toString()   === req.user._id.toString();
     const isExpert = booking.expertId.toString() === req.user._id.toString();
 
     if (!isUser && !isExpert) {
       return res.status(403).json({ message: 'Not authorized' });
     }
+
+    // Role-based status restrictions
+    const allowedForUser   = ['cancelled'];
+    const allowedForExpert = ['confirmed', 'rejected', 'completed'];
+
+    if (isUser   && !allowedForUser.includes(status))   return res.status(403).json({ message: 'Users can only cancel bookings' });
+    if (isExpert && !allowedForExpert.includes(status)) return res.status(403).json({ message: 'Experts can only confirm, reject or complete bookings' });
 
     // Update status
     booking.status = status;
@@ -101,14 +130,21 @@ const updateBookingStatus = async (req, res) => {
     await updatedBooking.populate('userId', 'name email');
     await updatedBooking.populate('expertId', 'name email expertise');
 
-    // Send notifications based on status
-    if (status === 'confirmed') {
-      await NotificationService.notifyBookingConfirmed(updatedBooking);
-    } else if (status === 'rejected') {
-      await NotificationService.notifyBookingRejected(updatedBooking);
+    // Send notifications based on status (non-blocking)
+    try {
+      if (status === 'confirmed') {
+        await NotificationService.notifyBookingConfirmed(updatedBooking);
+      } else if (status === 'rejected') {
+        await NotificationService.notifyBookingRejected(updatedBooking);
+      }
+    } catch (notifErr) {
+      console.error('Notification error (non-fatal):', notifErr.message);
     }
 
-    res.json(updatedBooking);
+    res.json({
+      ...updatedBooking.toObject(),
+      _id: updatedBooking._id.toString(),
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -145,9 +181,143 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Reschedule a booking
+ * @route   PUT /api/bookings/:id/reschedule
+ * @access  Private (user only)
+ */
+const rescheduleBooking = async (req, res) => {
+  try {
+    const { date, startTime, endTime } = req.body;
+
+    if (!date || !startTime || !endTime) {
+      return res.status(400).json({ message: 'date, startTime, and endTime are required' });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Only the user who made the booking can reschedule
+    if (booking.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Only pending or confirmed bookings can be rescheduled
+    if (!['pending', 'confirmed'].includes(booking.status)) {
+      return res.status(400).json({ message: 'Only pending or confirmed bookings can be rescheduled' });
+    }
+
+    // Enforce 2-hour reschedule window restriction
+    const sessionDateTime = new Date(booking.date);
+    const [hours, minutes] = booking.startTime.split(':').map(Number);
+    sessionDateTime.setHours(hours, minutes, 0, 0);
+    const twoHoursBefore = new Date(sessionDateTime.getTime() - 2 * 60 * 60 * 1000);
+
+    if (new Date() >= twoHoursBefore) {
+      return res.status(400).json({
+        message: 'Cannot reschedule within 2 hours of the session start time'
+      });
+    }
+
+    // Check that the new slot is not already booked by another booking with the same expert
+    const newDate = new Date(date);
+    const conflictingBooking = await Booking.findOne({
+      _id: { $ne: booking._id },
+      expertId: booking.expertId,
+      date: newDate,
+      startTime,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (conflictingBooking) {
+      return res.status(409).json({ message: 'This time slot is already booked' });
+    }
+
+    // Save reschedule history
+    booking.rescheduleHistory.push({
+      previousDate: booking.date,
+      previousStartTime: booking.startTime,
+      previousEndTime: booking.endTime,
+      rescheduledBy: req.user._id
+    });
+
+    // Update booking with new time
+    booking.date = newDate;
+    booking.startTime = startTime;
+    booking.endTime = endTime;
+    booking.status = 'pending'; // reset to pending after reschedule
+
+    const updatedBooking = await booking.save();
+    await updatedBooking.populate('userId', 'name email');
+    await updatedBooking.populate('expertId', 'name email expertise');
+
+    // Notify both parties
+    await NotificationService.notifyBookingRescheduled(updatedBooking, req.user.name);
+
+    // Reset reminder flags so new reminders fire at the new time
+    await resetReminders(updatedBooking._id);
+
+    res.json(updatedBooking);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Get available slots for an expert on a given date (excluding already booked)
+ * @route   GET /api/bookings/available-slots?expertId=&date=
+ * @access  Private
+ */
+const getAvailableSlots = async (req, res) => {
+  try {
+    const { expertId, date, excludeBookingId } = req.query;
+
+    if (!expertId || !date) {
+      return res.status(400).json({ message: 'expertId and date are required' });
+    }
+
+    const expert = await User.findOne({ _id: expertId, role: 'expert' });
+    if (!expert) {
+      return res.status(404).json({ message: 'Expert not found' });
+    }
+
+    // Get day of week from date
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = dayNames[new Date(date).getDay()];
+
+    // Find expert's availability for that day
+    const dayAvailability = expert.availability?.find(a => a.day === dayOfWeek);
+    const allSlots = dayAvailability?.slots || [];
+
+    // Get already booked slots for that date
+    const bookedQuery = {
+      expertId,
+      date: new Date(date),
+      status: { $in: ['pending', 'confirmed'] }
+    };
+    if (excludeBookingId) {
+      bookedQuery._id = { $ne: excludeBookingId };
+    }
+
+    const bookedBookings = await Booking.find(bookedQuery).select('startTime endTime');
+    const bookedTimes = new Set(bookedBookings.map(b => b.startTime));
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter(slot => !bookedTimes.has(slot.startTime));
+
+    res.json({ day: dayOfWeek, slots: availableSlots });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
   getBookings,
   updateBookingStatus,
-  deleteBooking
+  deleteBooking,
+  rescheduleBooking,
+  getAvailableSlots
 };

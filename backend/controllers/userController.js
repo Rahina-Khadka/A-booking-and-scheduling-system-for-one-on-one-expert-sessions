@@ -1,66 +1,41 @@
 const User = require('../models/User');
+const { decrypt } = require('../utils/encryption');
 
-/**
- * @desc    Get user profile
- * @route   GET /api/users/profile
- * @access  Private
- */
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    
-    if (user) {
-      res.json(user);
-    } else {
-      res.status(404).json({ message: 'User not found' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const result = user.toObject();
+    if (result.phone) result.phone = decrypt(result.phone);
+    res.json(result);
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-/**
- * @desc    Update user profile
- * @route   PUT /api/users/profile
- * @access  Private
- */
 const updateProfile = async (req, res) => {
   try {
+    const { name, phone, bio, interests, profilePicture, expertise, hourlyRate, isOnline, availability, portfolio } = req.body;
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user) {
-      // Update basic fields
-      user.name = req.body.name || user.name;
-      user.phone = req.body.phone || user.phone;
-      user.bio = req.body.bio || user.bio;
-      user.interests = req.body.interests || user.interests;
-      if (req.body.profilePicture !== undefined) {
-        user.profilePicture = req.body.profilePicture;
-      }
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (bio !== undefined) user.bio = bio;
+    if (interests !== undefined) user.interests = interests;
+    if (profilePicture !== undefined) user.profilePicture = profilePicture;
+    if (expertise !== undefined) user.expertise = expertise;
+    if (hourlyRate !== undefined) user.hourlyRate = hourlyRate;
+    if (isOnline !== undefined) user.isOnline = isOnline;
+    if (availability !== undefined) user.availability = availability;
+    if (portfolio !== undefined) user.portfolio = portfolio;
+    if (req.body.paymentQr !== undefined) user.paymentQr = req.body.paymentQr;
 
-      // Update expert-specific fields if user is an expert
-      if (user.role === 'expert') {
-        user.expertise = req.body.expertise || user.expertise;
-        user.availability = req.body.availability || user.availability;
-        if (req.body.hourlyRate !== undefined) user.hourlyRate = req.body.hourlyRate;
-        if (req.body.isOnline !== undefined) user.isOnline = req.body.isOnline;
-        if (req.body.documents) {
-          user.documents = { ...user.documents.toObject?.() || user.documents, ...req.body.documents };
-        }
-        if (req.body.portfolio !== undefined) user.portfolio = req.body.portfolio;
-      }
-
-      const updatedUser = await user.save();
-      res.json(updatedUser);
-    } else {
-      res.status(404).json({ message: 'User not found' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    const updated = await user.save();
+    const result = updated.toObject();
+    delete result.password;
+    // Decrypt phone before sending back to client
+    if (result.phone) result.phone = decrypt(result.phone);
+    res.json(result);
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-module.exports = {
-  getProfile,
-  updateProfile
-};
+module.exports = { getProfile, updateProfile };

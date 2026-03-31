@@ -1,49 +1,54 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+const ROLE_REDIRECTS = {
+  admin: '/admin',
+  expert: '/expert-dashboard',
+  user: '/dashboard',
+};
+
 const GoogleAuthSuccessPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState('Completing authentication...');
+  const [status, setStatus] = useState('Completing sign-in...');
 
   useEffect(() => {
     const handleGoogleAuth = async () => {
       const token = searchParams.get('token');
+      const roleHint = searchParams.get('role'); // fast-path hint from backend
 
       if (!token) {
-        navigate('/admin/login?error=no_token');
+        navigate('/login?error=no_token');
         return;
       }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/google/current`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Fetch full user profile using the token
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/auth/google/current`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
         if (!response.ok) {
-          navigate('/admin/login?error=auth_failed');
+          navigate('/login?error=auth_failed');
           return;
         }
 
         const userData = await response.json();
 
-        if (userData.role !== 'admin') {
-          navigate('/admin/login?error=unauthorized');
-          return;
-        }
-
-        // Store credentials
+        // Persist credentials
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        // Mark session as alive so AuthProvider keeps the user logged in
+        localStorage.setItem('user', JSON.stringify({ ...userData, token }));
         sessionStorage.setItem('session_alive', '1');
 
-        setStatus('Access granted. Redirecting to Admin Dashboard...');
-        // Hard reload so AuthProvider picks up the new localStorage state
-        window.location.href = '/admin';
+        const destination = ROLE_REDIRECTS[userData.role] || '/dashboard';
+        setStatus(`Welcome, ${userData.name}! Redirecting...`);
+
+        // Hard navigate so AuthProvider re-reads localStorage
+        window.location.href = destination;
       } catch (error) {
         console.error('Google auth error:', error);
-        navigate('/admin/login?error=auth_failed');
+        navigate('/login?error=auth_failed');
       }
     };
 

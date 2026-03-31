@@ -36,7 +36,7 @@ const AdminLoginPage = () => {
 
   const handleGoogleLogin = () => {
     const base = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    window.location.href = `${base}/api/auth/google`;
+    window.location.href = `${base}/api/auth/google?role=admin`;
   };
 
   const handleEmailLogin = async (e) => {

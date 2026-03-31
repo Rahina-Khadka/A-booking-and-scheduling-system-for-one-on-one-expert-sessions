@@ -57,13 +57,6 @@ const HomePage = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 grid lg:grid-cols-2 gap-12 items-center">
           {/* Left copy */}
           <div>
-            <motion.div
-              variants={fadeUp} initial="hidden" animate="visible" custom={0}
-              className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm border border-white/25 rounded-full px-4 py-1.5 text-white/90 text-sm font-medium mb-6"
-            >
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              AI-Powered Mentorship Platform
-            </motion.div>
 
             <motion.h1
               variants={fadeUp} initial="hidden" animate="visible" custom={1}

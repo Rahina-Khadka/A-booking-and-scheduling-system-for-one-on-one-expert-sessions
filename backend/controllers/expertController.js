@@ -1,75 +1,42 @@
 const User = require('../models/User');
-const RecommendationService = require('../services/recommendationService');
+const recommendationService = require('../services/recommendationService');
 
-/**
- * @desc    Get all experts
- * @route   GET /api/experts
- * @access  Public
- */
 const getExperts = async (req, res) => {
   try {
-    const { expertise, search } = req.query;
-    
-    let query = { role: 'expert', verificationStatus: 'approved' };
-
-    // Filter by expertise if provided
-    if (expertise) {
-      query.expertise = { $in: [expertise] };
-    }
-
-    // Search by name if provided
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
-    }
-
-    const experts = await User.find(query)
-      .select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio');
-
-    res.json(experts);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    res.set('Cache-Control', 'no-store');
+    const experts = await User.find({ role: 'expert', name: { $exists: true, $ne: null } })
+      .select('_id name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio paymentQr')
+      .sort({ rating: -1 })
+      .lean();
+    // Ensure _id is always a plain string in the response
+    const result = experts.map(e => ({ ...e, _id: e._id.toString() }));
+    res.json(result);
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-/**
- * @desc    Get expert by ID
- * @route   GET /api/experts/:id
- * @access  Public
- */
 const getExpertById = async (req, res) => {
   try {
-    const expert = await User.findOne({ 
-      _id: req.params.id, 
-      role: 'expert',
-      verificationStatus: 'approved'
-    }).select('name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio');
-
-    if (expert) {
-      res.json(expert);
-    } else {
-      res.status(404).json({ message: 'Expert not found' });
+    const { id } = req.params;
+    if (!id || id === 'undefined' || id === 'null') {
+      return res.status(400).json({ message: 'Invalid expert ID' });
     }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    // Validate ObjectId format before querying
+    if (!/^[a-f\d]{24}$/i.test(id)) {
+      return res.status(400).json({ message: 'Invalid expert ID format' });
+    }
+    const expert = await User.findOne({ _id: id, role: 'expert' })
+      .select('_id name email expertise rating totalRatings bio availability profilePicture hourlyRate isOnline verificationStatus portfolio paymentQr')
+      .lean();
+    if (!expert) return res.status(404).json({ message: 'Expert not found' });
+    res.json({ ...expert, _id: expert._id.toString() });
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-/**
- * @desc    Get recommended experts for logged-in user
- * @route   GET /api/experts/recommended
- * @access  Private
- */
 const getRecommendedExperts = async (req, res) => {
   try {
-    const recommendedExperts = await RecommendationService.getRecommendedExperts(req.user._id);
-    res.json(recommendedExperts);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    const experts = await recommendationService.getRecommendations(req.user);
+    res.json(experts);
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-module.exports = {
-  getExperts,
-  getExpertById,
-  getRecommendedExperts
-};
+module.exports = { getExperts, getExpertById, getRecommendedExperts };

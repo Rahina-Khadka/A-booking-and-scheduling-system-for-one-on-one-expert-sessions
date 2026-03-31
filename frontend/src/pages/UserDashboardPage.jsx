@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
+import SessionReminderBanner from '../components/SessionReminderBanner';
 import userService from '../services/userService';
 import expertService from '../services/expertService';
 import bookingService from '../services/bookingService';
@@ -29,12 +30,16 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const StatCard = ({ icon, label, value, color }) => (
-  <div className={`rounded-2xl p-5 border ${color}`}>
+const StatCard = ({ icon, label, value, color, to }) => (
+  <Link
+    to={to}
+    className={`rounded-2xl p-5 border block cursor-pointer select-none
+      transition-all duration-200 hover:scale-[1.04] hover:shadow-lg active:scale-[0.97] ${color}`}
+  >
     <div className="text-2xl mb-1">{icon}</div>
     <div className="text-2xl font-bold">{value}</div>
     <div className="text-xs font-medium opacity-70 mt-0.5">{label}</div>
-  </div>
+  </Link>
 );
 
 const UserDashboardPage = () => {
@@ -83,6 +88,10 @@ const UserDashboardPage = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (form.phone && form.phone.length !== 10) {
+      alert('Phone number must be exactly 10 digits.');
+      return;
+    }
     try {
       const updated = await userService.updateProfile(form);
       setProfile(updated);
@@ -112,6 +121,7 @@ const UserDashboardPage = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
+      <SessionReminderBanner />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
 
         {/* Header */}
@@ -166,10 +176,10 @@ const UserDashboardPage = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon="✅" label="Completed Sessions" value={completed} color="bg-blue-50 border-blue-100 text-blue-700" />
-          <StatCard icon="📅" label="Upcoming Sessions" value={upcoming} color="bg-green-50 border-green-100 text-green-700" />
-          <StatCard icon="⏳" label="Pending Requests" value={pending} color="bg-yellow-50 border-yellow-100 text-yellow-700" />
-          <StatCard icon="🎯" label="Experts Explored" value={recommended.length} color="bg-indigo-50 border-indigo-100 text-indigo-700" />
+          <StatCard icon="✅" label="Completed Sessions" value={completed} color="bg-blue-50 border-blue-100 text-blue-700"   to="/learner/completed" />
+          <StatCard icon="📅" label="Upcoming Sessions"  value={upcoming}  color="bg-green-50 border-green-100 text-green-700" to="/learner/upcoming" />
+          <StatCard icon="⏳" label="Pending Requests"   value={pending}   color="bg-yellow-50 border-yellow-100 text-yellow-700" to="/learner/requests" />
+          <StatCard icon="🎯" label="Experts Explored"   value={recommended.length} color="bg-indigo-50 border-indigo-100 text-indigo-700" to="/learner/experts" />
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -223,7 +233,7 @@ const UserDashboardPage = () => {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900">My Profile</h2>
-                <button onClick={() => setEditOpen(true)} className="text-sm text-indigo-600 font-medium hover:underline">Edit</button>
+                <Link to="/bookings" className="text-sm text-indigo-600 font-medium hover:underline">View Bookings →</Link>
               </div>
               <div className="space-y-3 text-sm">
                 {[
@@ -309,13 +319,29 @@ const UserDashboardPage = () => {
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-indigo-600 hover:underline">Upload Photo</button>
               </div>
-              {[{ label: 'Name', name: 'name', type: 'text' }, { label: 'Phone', name: 'phone', type: 'tel' }].map(f => (
+              {[{ label: 'Name', name: 'name', type: 'text' }].map(f => (
                 <div key={f.name}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
                   <input type={f.type} value={form[f.name]} onChange={e => setForm(p => ({ ...p, [f.name]: e.target.value }))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm" />
                 </div>
               ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="text" inputMode="numeric" maxLength={10}
+                  value={form.phone}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setForm(p => ({ ...p, phone: digits }));
+                  }}
+                  placeholder="10-digit number"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+                />
+                {form.phone && form.phone.length !== 10 && (
+                  <p className="text-xs text-red-500 mt-1">Phone must be exactly 10 digits</p>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
                 <textarea value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} rows="3"

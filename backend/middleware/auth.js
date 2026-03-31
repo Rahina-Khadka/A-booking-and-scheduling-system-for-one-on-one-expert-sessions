@@ -2,49 +2,59 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 /**
- * Middleware to protect routes
- * Verifies JWT token and attaches user to request
+ * Protect middleware — verifies JWT and attaches user to request
+ * Security hardening:
+ *   - Rejects expired tokens
+ *   - Rejects tokens for non-existent users
+ *   - Never exposes password in req.user
  */
 const protect = async (req, res, next) => {
   let token;
 
-  // Check if token exists in Authorization header
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (req.headers.authorization?.startsWith('Bearer')) {
     try {
-      // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify token
+      // Verify signature and expiry
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from token and attach to request
-      req.user = await User.findById(decoded.id).select('-password');
+      // Fetch user — exclude password always
+      req.user = await User.findById(decoded.id).select('-password -__v');
 
       if (!req.user) {
-        return res.status(401).json({ message: 'User not found' });
+        return res.status(401).json({ message: 'User account no longer exists' });
       }
 
       next();
     } catch (error) {
-      console.error(error);
-      return res.status(401).json({ message: 'Not authorized, token failed' });
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Session expired. Please log in again.' });
+      }
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: 'Invalid token. Please log in again.' });
+      }
+      return res.status(401).json({ message: 'Not authorized' });
     }
-  }
-
-  if (!token) {
+  } else {
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
 
 /**
- * Middleware to check if user is an expert
+ * Role-based access control middleware factory
+ * Usage: authorize('admin'), authorize('admin', 'expert')
  */
-const expertOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'expert') {
-    next();
-  } else {
-    res.status(403).json({ message: 'Access denied. Experts only.' });
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({
+      message: `Access denied. Required role: ${roles.join(' or ')}`
+    });
   }
+  next();
 };
 
-module.exports = { protect, expertOnly };
+// Convenience aliases
+const adminOnly  = authorize('admin');
+const expertOnly = authorize('expert');
+
+module.exports = { protect, authorize, adminOnly, expertOnly };

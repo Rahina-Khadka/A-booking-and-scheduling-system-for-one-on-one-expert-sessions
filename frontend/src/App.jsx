@@ -15,6 +15,16 @@ import SessionRoomPage from './pages/SessionRoomPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import GoogleAuthSuccessPage from './pages/GoogleAuthSuccessPage';
+import PaymentVerifyPage from './pages/PaymentVerifyPage';
+import PaymentFailedPage from './pages/PaymentFailedPage';
+import ExpertRequestsPage from './pages/ExpertRequestsPage';
+import ExpertSessionsPage from './pages/ExpertSessionsPage';
+import ExpertCompletedPage from './pages/ExpertCompletedPage';
+import ExpertEarningsPage from './pages/ExpertEarningsPage';
+import LearnerCompletedPage from './pages/LearnerCompletedPage';
+import LearnerUpcomingPage from './pages/LearnerUpcomingPage';
+import LearnerRequestsPage from './pages/LearnerRequestsPage';
+import LearnerExpertsPage from './pages/LearnerExpertsPage';
 
 function App() {
   return (
@@ -27,6 +37,8 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/auth/google/success" element={<GoogleAuthSuccessPage />} />
+          <Route path="/payment/verify" element={<PaymentVerifyPage />} />
+          <Route path="/payment/failed" element={<PaymentFailedPage />} />
 
           {/* User dashboard */}
           <Route path="/dashboard" element={
@@ -34,11 +46,51 @@ function App() {
               <UserDashboardPage />
             </PrivateRoute>
           } />
+          <Route path="/learner/completed" element={
+            <PrivateRoute roles={['user']}>
+              <LearnerCompletedPage />
+            </PrivateRoute>
+          } />
+          <Route path="/learner/upcoming" element={
+            <PrivateRoute roles={['user']}>
+              <LearnerUpcomingPage />
+            </PrivateRoute>
+          } />
+          <Route path="/learner/requests" element={
+            <PrivateRoute roles={['user']}>
+              <LearnerRequestsPage />
+            </PrivateRoute>
+          } />
+          <Route path="/learner/experts" element={
+            <PrivateRoute roles={['user']}>
+              <LearnerExpertsPage />
+            </PrivateRoute>
+          } />
 
           {/* Expert dashboard */}
           <Route path="/expert-dashboard" element={
             <PrivateRoute roles={['expert']}>
               <ExpertDashboardPage />
+            </PrivateRoute>
+          } />
+          <Route path="/expert/requests" element={
+            <PrivateRoute roles={['expert']}>
+              <ExpertRequestsPage />
+            </PrivateRoute>
+          } />
+          <Route path="/expert/sessions" element={
+            <PrivateRoute roles={['expert']}>
+              <ExpertSessionsPage />
+            </PrivateRoute>
+          } />
+          <Route path="/expert/completed" element={
+            <PrivateRoute roles={['expert']}>
+              <ExpertCompletedPage />
+            </PrivateRoute>
+          } />
+          <Route path="/expert/earnings" element={
+            <PrivateRoute roles={['expert']}>
+              <ExpertEarningsPage />
             </PrivateRoute>
           } />
 

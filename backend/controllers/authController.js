@@ -17,25 +17,26 @@ const generateToken = (id) => {
  */
 const register = async (req, res) => {
   try {
-    console.log('📝 Registration request received:', { 
-      name: req.body.name, 
-      email: req.body.email, 
-      role: req.body.role 
-    });
+    const { name, password, role, documents } = req.body;
+    // Normalize email consistently
+    const email = req.body.email?.toLowerCase().trim();
 
-    const { name, email, password, role, documents } = req.body;
+    console.log('📝 Registration request received:', { name, email, role });
 
     // Validate required fields
     if (!name || !email || !password) {
-      console.log('❌ Missing required fields');
       return res.status(400).json({ message: 'Please provide name, email, and password' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       console.log('❌ User already exists:', email);
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'User already exists with this email' });
     }
 
     // Build user data
@@ -45,28 +46,28 @@ const register = async (req, res) => {
       userData.verificationStatus = 'pending';
     }
 
-    // Create user
-    console.log('✅ Creating new user...');
     const user = await User.create(userData);
+    console.log('✅ User created successfully:', user._id, '| email:', user.email, '| DB:', require('mongoose').connection.name);
 
-    console.log('✅ User created successfully:', user._id);
-
-    if (user) {
-      const token = generateToken(user._id);
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        verificationStatus: user.verificationStatus,
-        token: token
-      });
-    } else {
-      console.log('❌ Failed to create user');
-      res.status(400).json({ message: 'Invalid user data' });
-    }
+    const token = generateToken(user._id);
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      verificationStatus: user.verificationStatus,
+      token: token
+    });
   } catch (error) {
-    console.error('❌ Registration error:', error);
+    console.error('❌ Registration error:', error.message);
+    // Surface Mongoose validation errors clearly
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'User already exists with this email' });
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -78,84 +79,77 @@ const register = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
-    console.log('🔐 Login request received:', { email: req.body.email });
+    // Normalize email consistently — same as registration
+    const email = req.body.email?.toLowerCase().trim();
+    const { password } = req.body;
 
-    const { email, password } = req.body;
+    console.log('🔐 Login request received:', { email });
 
-    // Validate required fields
     if (!email || !password) {
-      console.log('❌ Missing email or password');
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // Find user by email (include password for comparison)
+    // Find user — email is stored lowercase by schema, but normalize input too
     const user = await User.findOne({ email }).select('+password');
 
+    console.log('🔍 DB query for email:', email, '| DB:', require('mongoose').connection.name, '| Found:', !!user);
+
     if (!user) {
-      console.log('❌ User not found:', email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Check password
     const isPasswordMatch = await user.comparePassword(password);
     console.log('🔑 Password match:', isPasswordMatch);
 
-    if (isPasswordMatch) {
-      const token = generateToken(user._id);
-      console.log('✅ Login successful:', user._id);
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        token: token
-      });
-    } else {
-      console.log('❌ Invalid password');
-      res.status(401).json({ message: 'Invalid email or password' });
+    if (!isPasswordMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    const token = generateToken(user._id);
+    console.log('✅ Login successful:', user._id);
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: token
+    });
   } catch (error) {
-    console.error('❌ Login error:', error);
+    console.error('❌ Login error:', error.message);
     res.status(500).json({ message: error.message });
   }
 };
 
 /**
- * @desc    Google OAuth callback
+ * @desc    Google OAuth callback — handles all roles
  * @route   GET /api/auth/google/callback
  * @access  Public
  */
 const googleCallback = async (req, res) => {
   try {
     if (!req.user) {
-      return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=unauthorized`);
-    }
-
-    // Only admin users can use Google OAuth login
-    if (req.user.role !== 'admin') {
-      return res.redirect(`${process.env.CLIENT_URL}/admin/login?error=unauthorized`);
+      return res.redirect(`${process.env.CLIENT_URL}/login?error=unauthorized`);
     }
 
     const token = generateToken(req.user._id);
-    // Redirect to the shared success handler with role hint
-    res.redirect(`${process.env.CLIENT_URL}/auth/google/success?token=${token}`);
+    // Pass role so the success page can redirect correctly
+    res.redirect(
+      `${process.env.CLIENT_URL}/auth/google/success?token=${token}&role=${req.user.role}`
+    );
   } catch (error) {
     console.error('Google callback error:', error);
-    res.redirect(`${process.env.CLIENT_URL}/admin/login?error=auth_failed`);
+    res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
   }
 };
 
 /**
- * @desc    Get current user from Google OAuth
+ * @desc    Get current user profile (called by GoogleAuthSuccessPage with Bearer token)
  * @route   GET /api/auth/google/current
  * @access  Private
  */
 const getCurrentGoogleUser = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
+    // req.user is set by the protect middleware
     res.json({
       _id: req.user._id,
       name: req.user.name,

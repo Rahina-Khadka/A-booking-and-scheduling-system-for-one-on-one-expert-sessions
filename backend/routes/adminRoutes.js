@@ -7,14 +7,15 @@ const {
   deleteUser,
   updateUserRole,
   getPendingExperts,
-  verifyExpert
+  verifyExpert,
+  getAnalytics,
+  exportCSV
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
 const { adminOnly } = require('../middleware/adminAuth');
 
 const router = express.Router();
 
-// Admin routes (all protected and admin-only)
 router.get('/users', protect, adminOnly, getAllUsers);
 router.get('/experts', protect, adminOnly, getAllExperts);
 router.get('/experts/pending', protect, adminOnly, getPendingExperts);
@@ -23,5 +24,9 @@ router.get('/bookings', protect, adminOnly, getAllBookings);
 router.get('/stats', protect, adminOnly, getSystemStats);
 router.delete('/users/:id', protect, adminOnly, deleteUser);
 router.put('/users/:id/role', protect, adminOnly, updateUserRole);
+
+// Analytics
+router.get('/analytics', protect, adminOnly, getAnalytics);
+router.get('/analytics/export/csv', protect, adminOnly, exportCSV);
 
 module.exports = router;

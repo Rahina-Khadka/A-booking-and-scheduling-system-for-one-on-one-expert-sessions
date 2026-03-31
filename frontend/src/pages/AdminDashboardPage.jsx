@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
+} from 'recharts';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import adminService from '../services/adminService';
@@ -19,7 +23,13 @@ const AdminDashboardPage = () => {
   const [pendingExperts, setPendingExperts] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [docViewer, setDocViewer] = useState(null); // { expert, docKey }
+  const [docViewer, setDocViewer] = useState(null);
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+  const [groupBy, setGroupBy] = useState('day'); // { expert, docKey }
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -39,7 +49,6 @@ const AdminDashboardPage = () => {
         adminService.getAllBookings(),
         adminService.getPendingExperts()
       ]);
-
       setStats(statsData.stats);
       setUsers(usersData);
       setExperts(expertsData);
@@ -51,6 +60,22 @@ const AdminDashboardPage = () => {
       setLoading(false);
     }
   };
+
+  const fetchAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const data = await adminService.getAnalytics({ ...dateRange, groupBy });
+      setAnalytics(data);
+    } catch (err) {
+      console.error('Analytics error:', err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics') fetchAnalytics();
+  }, [activeTab, groupBy]);
 
   const handleDeleteUser = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
@@ -98,7 +123,7 @@ const AdminDashboardPage = () => {
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2 flex-wrap">
-          {['overview', 'verification', 'users', 'experts', 'bookings'].map((tab) => (
+          {['overview', 'analytics', 'verification', 'users', 'experts', 'bookings'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -123,20 +148,183 @@ const AdminDashboardPage = () => {
           <div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {[
-                { label:'Total Users', value: stats.totalUsers, color:'bg-indigo-50 border-indigo-100 text-indigo-700', icon:'👥' },
-                { label:'Total Experts', value: stats.totalExperts, color:'bg-green-50 border-green-100 text-green-700', icon:'🎓' },
-                { label:'Total Bookings', value: stats.totalBookings, color:'bg-cyan-50 border-cyan-100 text-cyan-700', icon:'📅' },
-                { label:'Completed Sessions', value: stats.completedBookings, color:'bg-blue-50 border-blue-100 text-blue-700', icon:'✅' },
-                { label:'Pending Bookings', value: stats.pendingBookings, color:'bg-yellow-50 border-yellow-100 text-yellow-700', icon:'⏳' },
-                { label:'Total Reviews', value: stats.totalReviews, color:'bg-purple-50 border-purple-100 text-purple-700', icon:'⭐' },
+                { label:'Total Users', value: stats.totalUsers, color:'bg-indigo-50 border-indigo-100 text-indigo-700', icon:'👥', tab:'users' },
+                { label:'Total Experts', value: stats.totalExperts, color:'bg-green-50 border-green-100 text-green-700', icon:'🎓', tab:'experts' },
+                { label:'Total Bookings', value: stats.totalBookings, color:'bg-cyan-50 border-cyan-100 text-cyan-700', icon:'📅', tab:'bookings' },
+                { label:'Completed Sessions', value: stats.completedBookings, color:'bg-blue-50 border-blue-100 text-blue-700', icon:'✅', tab:'bookings' },
+                { label:'Pending Bookings', value: stats.pendingBookings, color:'bg-yellow-50 border-yellow-100 text-yellow-700', icon:'⏳', tab:'bookings' },
+                { label:'Total Reviews', value: stats.totalReviews, color:'bg-purple-50 border-purple-100 text-purple-700', icon:'⭐', tab:'analytics' },
               ].map(s => (
-                <div key={s.label} className={`rounded-2xl border p-5 ${s.color}`}>
+                <button key={s.label} onClick={() => setActiveTab(s.tab)}
+                  className={`rounded-2xl border p-5 text-left hover:shadow-md transition-shadow cursor-pointer w-full ${s.color}`}>
                   <div className="text-2xl mb-2">{s.icon}</div>
                   <div className="text-3xl font-bold">{s.value}</div>
                   <div className="text-xs font-medium opacity-70 mt-1">{s.label}</div>
-                </div>
+                </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            {/* Filters */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                  <input type="date" value={dateRange.startDate}
+                    onChange={e => setDateRange(p => ({ ...p, startDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                  <input type="date" value={dateRange.endDate}
+                    onChange={e => setDateRange(p => ({ ...p, endDate: e.target.value }))}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Group By</label>
+                  <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                  </select>
+                </div>
+                <button onClick={fetchAnalytics}
+                  className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                  Apply
+                </button>
+                <button onClick={() => adminService.exportCSV(dateRange)}
+                  className="px-5 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition">
+                  ⬇ Export CSV
+                </button>
+              </div>
+            </div>
+
+            {analyticsLoading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            ) : analytics ? (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Revenue', value: `NPR ${analytics.summary.totalRevenue.toLocaleString()}`, icon: '💰', color: 'bg-green-50 border-green-100 text-green-700' },
+                    { label: 'Paid Sessions', value: analytics.summary.paidSessions, icon: '✅', color: 'bg-blue-50 border-blue-100 text-blue-700' },
+                    { label: 'Total Bookings', value: analytics.summary.totalBookings, icon: '📅', color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+                    { label: 'Completion Rate', value: `${analytics.summary.completionRate}%`, icon: '📈', color: 'bg-purple-50 border-purple-100 text-purple-700' },
+                  ].map(k => (
+                    <div key={k.label} className={`rounded-2xl border p-5 ${k.color}`}>
+                      <div className="text-2xl mb-2">{k.icon}</div>
+                      <div className="text-2xl font-bold">{k.value}</div>
+                      <div className="text-xs font-medium opacity-70 mt-1">{k.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Revenue Over Time */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenue Over Time (NPR)</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={analytics.revenueOverTime.map(d => ({
+                      label: d._id.day ? `${d._id.day}/${d._id.month}` : d._id.week ? `W${d._id.week}` : `${d._id.month}/${d._id.year}`,
+                      revenue: d.revenue,
+                      sessions: d.sessions
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2} dot={false} name="Revenue (NPR)" />
+                      <Line type="monotone" dataKey="sessions" stroke="#06b6d4" strokeWidth={2} dot={false} name="Sessions" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Booking Status Breakdown + User Growth */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Status Pie */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">Booking Status Breakdown</h3>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie data={analytics.statusBreakdown.map(s => ({ name: s._id, value: s.count }))}
+                          cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                          {analytics.statusBreakdown.map((_, i) => (
+                            <Cell key={i} fill={['#4f46e5','#06b6d4','#16a34a','#dc2626','#f59e0b'][i % 5]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* User Growth */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">New User Registrations</h3>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={analytics.userGrowth.map(d => ({
+                        label: d._id.day ? `${d._id.day}/${d._id.month}` : `${d._id.month}/${d._id.year}`,
+                        users: d.count
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Bar dataKey="users" fill="#4f46e5" radius={[4,4,0,0]} name="New Users" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Top Experts Table */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Experts by Revenue</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
+                          <th className="px-4 py-3 text-left">#</th>
+                          <th className="px-4 py-3 text-left">Expert</th>
+                          <th className="px-4 py-3 text-left">Expertise</th>
+                          <th className="px-4 py-3 text-right">Sessions</th>
+                          <th className="px-4 py-3 text-right">Revenue</th>
+                          <th className="px-4 py-3 text-right">Rating</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {analytics.topExperts.map((e, i) => (
+                          <tr key={e._id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-400 font-medium">{i + 1}</td>
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-gray-900">{e.name}</p>
+                              <p className="text-xs text-gray-400">{e.email}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {e.expertise?.slice(0, 2).map((s, j) => (
+                                  <span key={j} className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium">{e.sessions}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-green-700">NPR {e.revenue.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right">⭐ {e.rating?.toFixed(1) || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16 text-gray-400">Click Apply to load analytics</div>
+            )}
           </div>
         )}
 
@@ -168,7 +356,7 @@ const AdminDashboardPage = () => {
                         <div>
                           <p className="font-semibold text-gray-900">{expert.name}</p>
                           <p className="text-xs text-gray-500">{expert.email}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Registered {new Date(expert.createdAt).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">Registered {expert.createdAt ? new Date(expert.createdAt).toLocaleDateString() : '—'}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -243,7 +431,7 @@ const AdminDashboardPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
+                {users.filter(u => u._id && u.name).map((user) => (
                   <tr key={user._id}>
                     <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
@@ -255,7 +443,7 @@ const AdminDashboardPage = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
@@ -336,7 +524,7 @@ const AdminDashboardPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">{booking.userId?.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{booking.expertId?.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {new Date(booking.date).toLocaleDateString()}
+                      {booking.date ? new Date(booking.date).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">{booking.startTime}</td>
                     <td className="px-6 py-4 whitespace-nowrap">

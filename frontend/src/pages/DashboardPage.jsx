@@ -1,4 +1,3 @@
-// Legacy redirect — role-based routing now handled by App.jsx + PrivateRoute
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 

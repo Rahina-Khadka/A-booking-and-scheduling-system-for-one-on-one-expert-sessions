@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Review = require('../models/Review');
 const Notification = require('../models/Notification');
+const { Parser } = require('json2csv');
+const { generateInvoicePDF } = require('../services/invoiceService');
 
 /**
  * @desc    Get all users
@@ -10,11 +12,13 @@ const Notification = require('../models/Notification');
  */
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: { $in: ['user', 'expert'] } })
-      .select('-password')
-      .sort({ createdAt: -1 });
-
-    res.json(users);
+    res.set('Cache-Control', 'no-store');
+    const users = await User.find({ role: { $in: ['user', 'expert'] }, name: { $exists: true, $ne: null } })
+      .select('-password -__v')
+      .sort({ createdAt: -1 })
+      .lean();
+    const result = users.map(u => ({ ...u, _id: u._id.toString() }));
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -154,10 +158,13 @@ const updateUserRole = async (req, res) => {
  */
 const getPendingExperts = async (req, res) => {
   try {
-    const experts = await User.find({ role: 'expert', verificationStatus: 'pending' })
-      .select('-password')
-      .sort({ createdAt: -1 });
-    res.json(experts);
+    res.set('Cache-Control', 'no-store');
+    const experts = await User.find({ role: 'expert', verificationStatus: 'pending', name: { $exists: true, $ne: null } })
+      .select('-password -__v')
+      .lean();
+    // Convert ObjectId to string so frontend receives proper string IDs
+    const result = experts.map(e => ({ ...e, _id: e._id.toString() }));
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -203,6 +210,188 @@ const verifyExpert = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get analytics data with date range + category filters
+ * @route   GET /api/admin/analytics
+ * @access  Private/Admin
+ * Query params: startDate, endDate, category, groupBy (day|week|month)
+ */
+const getAnalytics = async (req, res) => {
+  try {
+    const { startDate, endDate, category, groupBy = 'day' } = req.query;
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      dateFilter.$lte = end;
+    }
+    const bookingMatch = Object.keys(dateFilter).length ? { date: dateFilter } : {};
+
+    // ── Summary KPIs ─────────────────────────────────────────────────────────
+    const [
+      totalUsers,
+      totalExperts,
+      totalBookings,
+      completedBookings,
+      cancelledBookings,
+      totalReviews
+    ] = await Promise.all([
+      User.countDocuments({ role: 'user', ...(dateFilter.$gte ? { createdAt: dateFilter } : {}) }),
+      User.countDocuments({ role: 'expert' }),
+      Booking.countDocuments(bookingMatch),
+      Booking.countDocuments({ ...bookingMatch, status: 'completed' }),
+      Booking.countDocuments({ ...bookingMatch, status: 'cancelled' }),
+      Review.countDocuments()
+    ]);
+
+    // ── Revenue (paid bookings only) ─────────────────────────────────────────
+    const revenueAgg = await Booking.aggregate([
+      { $match: { ...bookingMatch, 'payment.status': 'paid' } },
+      { $group: { _id: null, total: { $sum: '$payment.amount' }, count: { $sum: 1 } } }
+    ]);
+    const totalRevenue = revenueAgg[0]?.total || 0;
+    const paidSessions = revenueAgg[0]?.count || 0;
+
+    // ── Revenue over time ────────────────────────────────────────────────────
+    const groupFormat = groupBy === 'month'
+      ? { year: { $year: '$date' }, month: { $month: '$date' } }
+      : groupBy === 'week'
+      ? { year: { $year: '$date' }, week: { $week: '$date' } }
+      : { year: { $year: '$date' }, month: { $month: '$date' }, day: { $dayOfMonth: '$date' } };
+
+    const revenueOverTime = await Booking.aggregate([
+      { $match: { ...bookingMatch, 'payment.status': 'paid' } },
+      { $group: { _id: groupFormat, revenue: { $sum: '$payment.amount' }, sessions: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1, '_id.week': 1 } }
+    ]);
+
+    // ── Booking trends (all statuses) ────────────────────────────────────────
+    const bookingTrends = await Booking.aggregate([
+      { $match: bookingMatch },
+      { $group: { _id: { ...groupFormat, status: '$status' }, count: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+    ]);
+
+    // ── Top experts by revenue + sessions ────────────────────────────────────
+    const topExpertsAgg = await Booking.aggregate([
+      { $match: { ...bookingMatch, 'payment.status': 'paid' } },
+      {
+        $group: {
+          _id: '$expertId',
+          revenue: { $sum: '$payment.amount' },
+          sessions: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'expert'
+        }
+      },
+      { $unwind: '$expert' },
+      {
+        $project: {
+          name: '$expert.name',
+          email: '$expert.email',
+          expertise: '$expert.expertise',
+          rating: '$expert.rating',
+          revenue: 1,
+          sessions: 1
+        }
+      }
+    ]);
+
+    // ── Booking status breakdown ─────────────────────────────────────────────
+    const statusBreakdown = await Booking.aggregate([
+      { $match: bookingMatch },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    // ── New users over time ──────────────────────────────────────────────────
+    const userGrowth = await User.aggregate([
+      { $match: { role: 'user', ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {}) } },
+      { $group: { _id: groupFormat, count: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+    ]);
+
+    res.json({
+      summary: {
+        totalUsers,
+        totalExperts,
+        totalBookings,
+        completedBookings,
+        cancelledBookings,
+        totalReviews,
+        totalRevenue,
+        paidSessions,
+        completionRate: totalBookings > 0 ? Math.round((completedBookings / totalBookings) * 100) : 0
+      },
+      revenueOverTime,
+      bookingTrends,
+      topExperts: topExpertsAgg,
+      statusBreakdown,
+      userGrowth
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Export bookings report as CSV
+ * @route   GET /api/admin/analytics/export/csv
+ * @access  Private/Admin
+ */
+const exportCSV = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const match = {};
+    if (startDate || endDate) {
+      match.date = {};
+      if (startDate) match.date.$gte = new Date(startDate);
+      if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); match.date.$lte = e; }
+    }
+
+    const bookings = await Booking.find(match)
+      .populate('userId', 'name email')
+      .populate('expertId', 'name email')
+      .lean();
+
+    const rows = bookings.map(b => ({
+      'Booking ID': b._id,
+      'User': b.userId?.name,
+      'User Email': b.userId?.email,
+      'Expert': b.expertId?.name,
+      'Expert Email': b.expertId?.email,
+      'Date': new Date(b.date).toLocaleDateString(),
+      'Start Time': b.startTime,
+      'End Time': b.endTime,
+      'Status': b.status,
+      'Topic': b.topic || '',
+      'Payment Status': b.payment?.status || 'unpaid',
+      'Amount (NPR)': b.payment?.amount || 0,
+      'Gateway': b.payment?.gateway || '',
+      'Created At': new Date(b.createdAt).toISOString()
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(rows);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="bookings-report-${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllExperts,
@@ -211,5 +400,7 @@ module.exports = {
   deleteUser,
   updateUserRole,
   getPendingExperts,
-  verifyExpert
+  verifyExpert,
+  getAnalytics,
+  exportCSV
 };

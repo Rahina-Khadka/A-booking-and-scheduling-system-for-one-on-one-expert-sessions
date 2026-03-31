@@ -139,43 +139,120 @@ class NotificationService {
   }
 
   /**
-   * Notify session reminder (1 hour before)
+   * Notify session reminder — 24 hours before
+   */
+  static async notify24hReminder(booking) {
+    try {
+      const dateStr = new Date(booking.date).toLocaleDateString('en-NP', {
+        weekday: 'long', month: 'short', day: 'numeric'
+      });
+      const message = `Your session with ${booking.expertId.name} is tomorrow (${dateStr}) at ${booking.startTime}`;
+
+      await Promise.all([
+        this.createNotification(booking.userId, 'session_reminder', '📅 Session Tomorrow', message, booking._id, `/session/${booking._id}`),
+        this.createNotification(booking.expertId, 'session_reminder', '📅 Session Tomorrow', message, booking._id, `/session/${booking._id}`)
+      ]);
+
+      try {
+        await emailService.send24hReminder(booking, booking.userId, booking.expertId);
+      } catch (e) {
+        console.error('24h reminder email error:', e.message);
+      }
+    } catch (error) {
+      console.error('Error sending 24h reminder:', error);
+    }
+  }
+
+  /**
+   * Notify session reminder — 1 hour before
+   */
+  static async notify1hReminder(booking) {
+    try {
+      const message = `Your session with ${booking.expertId.name} starts in 1 hour at ${booking.startTime}`;
+
+      await Promise.all([
+        this.createNotification(booking.userId, 'session_reminder', '⏰ Starting in 1 Hour', message, booking._id, `/session/${booking._id}`),
+        this.createNotification(booking.expertId, 'session_reminder', '⏰ Starting in 1 Hour', message, booking._id, `/session/${booking._id}`)
+      ]);
+
+      try {
+        await emailService.sendSessionReminder(booking, booking.userId, booking.expertId);
+      } catch (e) {
+        console.error('1h reminder email error:', e.message);
+      }
+    } catch (error) {
+      console.error('Error sending 1h reminder:', error);
+    }
+  }
+
+  /**
+   * Notify session reminder (1 hour before) — legacy kept for compatibility
    */
   static async notifySessionReminder(booking) {
+    return this.notify1hReminder(booking);
+  }
+
+  /**
+   * Notify booking rescheduled (both user and expert)
+   */
+  static async notifyBookingRescheduled(booking, rescheduledByName) {
     try {
-      // Notify both user and expert
-      const message = `Your session is starting in 1 hour at ${booking.startTime}`;
+      const dateStr = new Date(booking.date).toLocaleDateString();
+      const message = `${rescheduledByName} rescheduled the session to ${dateStr} at ${booking.startTime}`;
 
       await this.createNotification(
         booking.userId,
-        'session_reminder',
-        'Session Reminder',
+        'booking_rescheduled',
+        'Session Rescheduled',
         message,
         booking._id,
-        `/session/${booking._id}`
+        `/bookings`
       );
 
       await this.createNotification(
         booking.expertId,
-        'session_reminder',
-        'Session Reminder',
+        'booking_rescheduled',
+        'Session Rescheduled',
         message,
         booking._id,
-        `/session/${booking._id}`
+        `/bookings`
+      );
+    } catch (error) {
+      console.error('Error notifying booking reschedule:', error);
+    }
+  }
+
+  /**
+   * Notify refund status to user
+   */
+  static async notifyRefundStatus(booking) {
+    try {
+      const refund = booking.payment?.refund;
+      const isProcessed = ['refunded', 'partial_refund'].includes(refund?.status);
+      const isPending = refund?.status === 'pending';
+
+      const title = isProcessed ? 'Refund Processed' : 'Refund Pending';
+      const message = isProcessed
+        ? `Your refund of NPR ${refund.amount} (${refund.policy === 'full' ? 'full' : '50% partial'} refund) has been processed for your cancelled session with ${booking.expertId.name}`
+        : `Your refund of NPR ${refund.amount} is being processed and will reflect within 3–5 business days`;
+
+      await this.createNotification(
+        booking.userId,
+        'refund_status',
+        title,
+        message,
+        booking._id,
+        `/bookings`
       );
 
-      // Send email reminders
+      // Email notification
       try {
-        await emailService.sendSessionReminder(
-          booking,
-          booking.userId,
-          booking.expertId
-        );
+        await emailService.sendRefundEmail(booking);
       } catch (emailError) {
-        console.error('Error sending session reminder email:', emailError);
+        console.error('Error sending refund email:', emailError);
       }
     } catch (error) {
-      console.error('Error notifying session reminder:', error);
+      console.error('Error notifying refund status:', error);
     }
   }
 

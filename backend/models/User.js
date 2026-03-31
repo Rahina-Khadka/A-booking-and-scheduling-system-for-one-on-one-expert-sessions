@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { encrypt, decrypt, isEncrypted } = require('../utils/encryption');
 
 /**
  * User Schema
@@ -40,6 +41,11 @@ const userSchema = new mongoose.Schema({
   bio: {
     type: String,
     trim: true
+  },
+  googleId: {
+    type: String,
+    default: null,
+    sparse: true  // allows multiple null values with unique index
   },
   profilePicture: {
     type: String,
@@ -99,7 +105,11 @@ const userSchema = new mongoose.Schema({
     skills: [{ type: String, trim: true }],
     link: { type: String, trim: true },
     image: { type: String, default: '' }
-  }]
+  }],
+  paymentQr: {
+    type: String,
+    default: ''   // base64 QR/scan image uploaded by expert
+  }
 }, {
   timestamps: true
 });
@@ -108,13 +118,17 @@ const userSchema = new mongoose.Schema({
  * Hash password before saving user
  */
 userSchema.pre('save', async function(next) {
-  // Only hash password if it has been modified
-  if (!this.isModified('password')) {
-    return next();
+  // Hash password if modified
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
-  
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+
+  // Encrypt phone if modified and not already encrypted
+  if (this.isModified('phone') && this.phone && !isEncrypted(this.phone)) {
+    this.phone = encrypt(this.phone);
+  }
+
   next();
 });
 
@@ -123,6 +137,15 @@ userSchema.pre('save', async function(next) {
  */
 userSchema.methods.comparePassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+/**
+ * Decrypt sensitive fields before returning to application layer
+ */
+userSchema.methods.decryptSensitiveFields = function() {
+  const obj = this.toObject();
+  if (obj.phone) obj.phone = decrypt(obj.phone);
+  return obj;
 };
 
 module.exports = mongoose.model('User', userSchema);
