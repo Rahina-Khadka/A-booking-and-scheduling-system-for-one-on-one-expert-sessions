@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import paymentService from '../services/paymentService';
 
@@ -34,7 +34,7 @@ const PaymentVerifyPage = () => {
         }
 
         setStatus('Payment successful! Redirecting...');
-        setTimeout(() => navigate('/bookings'), 2000);
+        setTimeout(() => navigate('/learner/completed'), 2000);
 
       } catch (err) {
         const msg = err.response?.data?.message || err.message || 'Payment verification failed';
@@ -48,21 +48,21 @@ const PaymentVerifyPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-cyan-500">
+    <div className="min-h-screen flex items-center justify-center bg-stone-900">
       <div className="bg-white rounded-2xl shadow-xl p-10 text-center max-w-sm w-full mx-4">
         {!error ? (
           <>
-            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-lg font-semibold text-gray-800">{status}</p>
+            <div className="w-16 h-16 border-4 border-stone-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-lg font-semibold text-stone-800">{status}</p>
           </>
         ) : (
           <>
             <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
               <span className="text-red-500 text-3xl">✕</span>
             </div>
-            <p className="text-lg font-semibold text-gray-800 mb-2">Payment Failed</p>
+            <p className="text-lg font-semibold text-stone-800 mb-2">Payment Failed</p>
             <p className="text-sm text-red-600">{error}</p>
-            <p className="text-xs text-gray-400 mt-3">Redirecting...</p>
+            <p className="text-xs text-stone-400 mt-3">Redirecting...</p>
           </>
         )}
       </div>

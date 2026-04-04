@@ -1,4 +1,4 @@
-import api from './api';
+﻿import api from './api';
 
 const ts = () => ({ _t: Date.now() });
 
@@ -45,6 +45,16 @@ const adminService = {
 
   getAnalytics: async (params = {}) => {
     const response = await api.get('/admin/analytics', { params: { ...params, _t: Date.now() } });
+    return response.data;
+  },
+
+  getPendingScanPayments: async () => {
+    const response = await api.get('/admin/payments/scan-pending', { params: ts() });
+    return response.data;
+  },
+
+  verifyScanPayment: async (bookingId, action) => {
+    const response = await api.put(`/admin/payments/${bookingId}/scan-verify`, { action });
     return response.data;
   },
 

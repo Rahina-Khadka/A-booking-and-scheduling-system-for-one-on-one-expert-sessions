@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import bookingService from '../services/bookingService';
@@ -64,7 +64,7 @@ const SessionReminderBanner = () => {
         <div className={`rounded-2xl shadow-lg px-5 py-3.5 flex items-center justify-between gap-4 ${
           isNow
             ? 'bg-green-500 text-white'
-            : 'bg-indigo-600 text-white'
+            : 'bg-accent-600 text-white'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
             <span className={`text-2xl flex-shrink-0 ${isNow ? 'animate-bounce' : 'animate-pulse'}`}>
@@ -87,7 +87,7 @@ const SessionReminderBanner = () => {
               className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${
                 isNow
                   ? 'bg-white text-green-600 hover:bg-green-50'
-                  : 'bg-white text-indigo-600 hover:bg-indigo-50'
+                  : 'bg-white text-accent-600 hover:bg-accent-50'
               }`}
             >
               Join Now →

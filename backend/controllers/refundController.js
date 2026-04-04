@@ -94,11 +94,19 @@ const cancelAndRefund = async (req, res) => {
     booking.status = 'cancelled';
     await booking.save();
 
-    // ── Notify both parties ──────────────────────────────────────────────────
-    await NotificationService.notifyBookingCancelled(booking, 'user');
+    // ── Notify both parties (non-blocking) ──────────────────────────────────
+    try {
+      await NotificationService.notifyBookingCancelled(booking, 'user');
+    } catch (notifErr) {
+      console.error('Notification error (non-fatal):', notifErr.message);
+    }
 
-    if (wasPaid && booking.payment.refund?.amount > 0) {
-      await NotificationService.notifyRefundStatus(booking);
+    try {
+      if (wasPaid && booking.payment.refund?.amount > 0) {
+        await NotificationService.notifyRefundStatus(booking);
+      }
+    } catch (notifErr) {
+      console.error('Refund notification error (non-fatal):', notifErr.message);
     }
 
     res.json({

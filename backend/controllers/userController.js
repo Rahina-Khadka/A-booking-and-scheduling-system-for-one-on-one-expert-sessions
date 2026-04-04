@@ -25,7 +25,20 @@ const updateProfile = async (req, res) => {
     if (expertise !== undefined) user.expertise = expertise;
     if (hourlyRate !== undefined) user.hourlyRate = hourlyRate;
     if (isOnline !== undefined) user.isOnline = isOnline;
-    if (availability !== undefined) user.availability = availability;
+    if (availability !== undefined) {
+      // Validate each slot is exactly 60 minutes
+      for (const day of availability) {
+        for (const slot of day.slots || []) {
+          const [sh, sm] = slot.startTime.split(':').map(Number);
+          const [eh, em] = slot.endTime.split(':').map(Number);
+          const diff = (eh * 60 + em) - (sh * 60 + sm);
+          if (diff !== 60) {
+            return res.status(400).json({ message: `Invalid time slot for ${day.day}. Each slot must be exactly 1 hour.` });
+          }
+        }
+      }
+      user.availability = availability;
+    }
     if (portfolio !== undefined) user.portfolio = portfolio;
     if (req.body.paymentQr !== undefined) user.paymentQr = req.body.paymentQr;
 

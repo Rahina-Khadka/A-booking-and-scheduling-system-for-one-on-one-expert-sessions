@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
@@ -62,7 +62,7 @@ const AdminLoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center px-4">
       {/* Background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-accent-600/10 rounded-full blur-[80px]" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl" />
       </div>
 
@@ -86,15 +86,15 @@ const AdminLoginPage = () => {
         <div className="glass-card rounded-3xl p-8 shadow-2xl">
           {/* Shield icon */}
           <div className="flex justify-center mb-5">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-stone-700 flex items-center justify-center shadow-lg">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Admin Login</h2>
-          <p className="text-sm text-gray-500 text-center mb-6">Only authorized accounts can access this panel</p>
+          <h2 className="text-2xl font-bold text-stone-900 text-center mb-1">Admin Login</h2>
+          <p className="text-sm text-stone-500 text-center mb-6">Only authorized accounts can access this panel</p>
 
           {/* Error banner */}
           {error && (
@@ -120,7 +120,7 @@ const AdminLoginPage = () => {
                 key={t.key}
                 onClick={() => { setTab(t.key); setError(''); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  tab === t.key ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
                 }`}
               >
                 {t.label}
@@ -133,7 +133,7 @@ const AdminLoginPage = () => {
               <motion.button
                 onClick={handleGoogleLogin}
                 whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 px-6 py-3 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all font-medium shadow-sm"
+                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-stone-200 text-stone-700 px-6 py-3 rounded-xl hover:border-indigo-300 hover:bg-accent-50 transition-all font-medium shadow-sm"
               >
                 <GoogleIcon />
                 Continue with Google
@@ -149,29 +149,29 @@ const AdminLoginPage = () => {
           ) : (
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Admin Email</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">Admin Email</label>
                 <input
                   type="email" name="email" value={formData.email}
                   onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
                   required
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none text-sm bg-white/80"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none text-sm bg-white/80"
                   placeholder="admin@example.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1.5">Password</label>
                 <input
                   type="password" name="password" value={formData.password}
                   onChange={e => setFormData(p => ({ ...p, password: e.target.value }))}
                   required
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none text-sm bg-white/80"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none text-sm bg-white/80"
                   placeholder="••••••••"
                 />
               </div>
               <motion.button
                 type="submit" disabled={loading}
                 whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-accent-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
               >
                 {loading ? 'Signing in...' : 'Sign In as Admin'}
               </motion.button>
@@ -179,7 +179,7 @@ const AdminLoginPage = () => {
           )}
 
           <div className="mt-6 text-center">
-            <Link to="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            <Link to="/" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">
               ← Back to Home
             </Link>
           </div>

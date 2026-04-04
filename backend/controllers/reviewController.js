@@ -36,4 +36,15 @@ const getExpertReviews = async (req, res) => {
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-module.exports = { createReview, getExpertReviews };
+const canReview = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.userId.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Not authorized' });
+    const existing = await Review.findOne({ bookingId });
+    res.json({ canReview: !existing });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+module.exports = { createReview, getExpertReviews, canReview };

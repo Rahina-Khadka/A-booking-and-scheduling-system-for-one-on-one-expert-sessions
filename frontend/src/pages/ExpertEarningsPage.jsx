@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/Navbar';
@@ -39,7 +39,7 @@ const ExpertEarningsPage = () => {
       emptyIcon: '🏆',
       emptyMsg: 'No completed sessions yet',
       amountColor: 'text-green-600',
-      badge: 'bg-green-100 text-green-700',
+      badge: 'bg-green-50 text-green-700 border border-green-200',
       badgeLabel: 'Completed',
       prefix: '+',
     },
@@ -49,7 +49,7 @@ const ExpertEarningsPage = () => {
       emptyIcon: '📅',
       emptyMsg: 'No upcoming sessions',
       amountColor: 'text-blue-600',
-      badge: 'bg-blue-100 text-blue-700',
+      badge: 'bg-blue-50 text-blue-700 border border-blue-200',
       badgeLabel: 'Upcoming',
       prefix: '',
     },
@@ -59,7 +59,7 @@ const ExpertEarningsPage = () => {
       emptyIcon: '📭',
       emptyMsg: 'No pending requests',
       amountColor: 'text-amber-600',
-      badge: 'bg-yellow-100 text-yellow-700',
+      badge: 'bg-amber-50 text-amber-700 border border-amber-200',
       badgeLabel: 'Awaiting',
       prefix: '',
     },
@@ -70,27 +70,27 @@ const ExpertEarningsPage = () => {
   const panelTotal = panel.rows.length * hourlyRate;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-stone-50">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 pt-24 pb-12">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <Link to="/expert-dashboard" className="text-gray-400 hover:text-indigo-600 transition-colors">
+          <Link to="/expert-dashboard" className="text-stone-400 hover:text-accent-600 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
           </Link>
           <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-xl">💰</div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
-            <p className="text-sm text-gray-500">Rate: NPR {hourlyRate}/hr</p>
+            <h1 className="text-2xl font-bold text-stone-900">Earnings</h1>
+            <p className="text-sm text-stone-500">Rate: NPR {hourlyRate}/hr</p>
           </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-stone-200 border-t-brand-600 rounded-full animate-spin" />
           </div>
         ) : (
           <>
@@ -141,15 +141,15 @@ const ExpertEarningsPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
+                className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6"
               >
-                <h2 className="text-base font-bold text-gray-900 mb-4">{panel.title}</h2>
+                <h2 className="text-base font-bold text-stone-900 mb-4">{panel.title}</h2>
 
                 {panel.rows.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-5xl mb-3">{panel.emptyIcon}</div>
-                    <p className="text-gray-500 text-sm font-medium">{panel.emptyMsg}</p>
-                    <p className="text-gray-400 text-xs mt-1">This section will populate as sessions progress.</p>
+                    <p className="text-stone-500 text-sm font-medium">{panel.emptyMsg}</p>
+                    <p className="text-stone-400 text-xs mt-1">This section will populate as sessions progress.</p>
                   </div>
                 ) : (
                   <>
@@ -160,15 +160,15 @@ const ExpertEarningsPage = () => {
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: i * 0.04 }}
-                          className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                          className="flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${panel.badge}`}>
                               {b.userId?.name?.charAt(0)}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">{b.userId?.name}</p>
-                              <p className="text-xs text-gray-400">
+                              <p className="text-sm font-semibold text-stone-900">{b.userId?.name}</p>
+                              <p className="text-xs text-stone-400">
                                 {new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {b.startTime}
                               </p>
                             </div>
@@ -184,8 +184,8 @@ const ExpertEarningsPage = () => {
                         </motion.div>
                       ))}
                     </div>
-                    <div className="border-t border-gray-100 pt-3 mt-3 flex justify-between items-center">
-                      <span className="text-sm font-semibold text-gray-700">{activeCardData?.label} Total</span>
+                    <div className="border-t border-stone-200 pt-3 mt-3 flex justify-between items-center">
+                      <span className="text-sm font-semibold text-stone-700">{activeCardData?.label} Total</span>
                       <span className={`text-sm font-bold ${panel.amountColor}`}>NPR {panelTotal}</span>
                     </div>
                   </>

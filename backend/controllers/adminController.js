@@ -392,6 +392,72 @@ const exportCSV = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get bookings with pending scan payment proof
+ * @route   GET /api/admin/payments/scan-pending
+ * @access  Private/Admin
+ */
+const getPendingScanPayments = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ 'payment.gateway': 'scan', 'payment.status': 'pending' })
+      .populate('userId', 'name email')
+      .populate('expertId', 'name email hourlyRate')
+      .sort({ updatedAt: -1 })
+      .lean();
+    res.json(bookings.map(b => ({ ...b, _id: b._id.toString() })));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Approve or reject a scan payment
+ * @route   PUT /api/admin/payments/:bookingId/scan-verify
+ * @access  Private/Admin
+ */
+const verifyScanPayment = async (req, res) => {
+  try {
+    const { action } = req.body; // 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ message: 'action must be approve or reject' });
+    }
+
+    const booking = await Booking.findById(req.params.bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.payment?.gateway !== 'scan') {
+      return res.status(400).json({ message: 'Not a scan payment' });
+    }
+
+    if (action === 'approve') {
+      booking.payment.status = 'paid';
+      booking.payment.paidAt = new Date();
+    } else {
+      booking.payment.status = 'failed';
+    }
+    await booking.save();
+
+    // Notify learner
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        userId: booking.userId,
+        type: 'payment_update',
+        title: action === 'approve' ? '💰 Payment Confirmed' : '❌ Payment Rejected',
+        message: action === 'approve'
+          ? 'Your scan payment has been verified and confirmed.'
+          : 'Your scan payment proof was rejected. Please contact support.',
+        link: '/learner/completed'
+      });
+    } catch (notifErr) {
+      console.error('Notification error (non-fatal):', notifErr.message);
+    }
+
+    res.json({ message: `Payment ${action === 'approve' ? 'approved' : 'rejected'}`, booking });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getAllExperts,
@@ -402,5 +468,7 @@ module.exports = {
   getPendingExperts,
   verifyExpert,
   getAnalytics,
-  exportCSV
+  exportCSV,
+  getPendingScanPayments,
+  verifyScanPayment
 };

@@ -111,7 +111,19 @@ const userSchema = new mongoose.Schema({
     default: ''   // base64 QR/scan image uploaded by expert
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: {
+    transform(doc, ret) {
+      ret._id = ret._id.toString();
+      return ret;
+    }
+  },
+  toObject: {
+    transform(doc, ret) {
+      ret._id = ret._id.toString();
+      return ret;
+    }
+  }
 });
 
 /**

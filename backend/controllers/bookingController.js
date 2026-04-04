@@ -19,6 +19,13 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ message: 'Expert not found' });
     }
 
+    // Validate time range
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const duration = (eh * 60 + em) - (sh * 60 + sm);
+    if (duration <= 0) return res.status(400).json({ message: 'End time must be after start time' });
+    if (duration > 60) return res.status(400).json({ message: 'Session cannot exceed 1 hour' });
+
     // Create booking
     const booking = await Booking.create({
       userId: req.user._id,
@@ -42,12 +49,7 @@ const createBooking = async (req, res) => {
       console.error('Notification error (non-fatal):', notifErr.message);
     }
 
-    res.status(201).json({
-      ...booking.toObject(),
-      _id: booking._id.toString(),
-      userId: booking.userId ? { ...booking.userId.toObject?.() || booking.userId, _id: booking.userId._id?.toString() || booking.userId._id } : booking.userId,
-      expertId: booking.expertId ? { ...booking.expertId.toObject?.() || booking.expertId, _id: booking.expertId._id?.toString() || booking.expertId._id } : booking.expertId,
-    });
+    res.status(201).json(booking);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -69,19 +71,11 @@ const getBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate('userId', 'name email profilePicture')
-      .populate('expertId', 'name email expertise profilePicture')
-      .sort({ date: -1 })
-      .lean(); // plain JS objects — _id is a Buffer/ObjectId that JSON.stringify converts to hex
+      .populate('expertId', 'name email expertise profilePicture hourlyRate paymentQr')
+      .sort({ date: -1 });
 
-    // Ensure all IDs are plain strings
-    const result = bookings.map(b => ({
-      ...b,
-      _id: b._id.toString(),
-      userId: b.userId ? { ...b.userId, _id: b.userId._id.toString() } : b.userId,
-      expertId: b.expertId ? { ...b.expertId, _id: b.expertId._id.toString() } : b.expertId,
-    }));
-
-    res.json(result);
+    // toJSON transform on schema ensures all _id fields are plain strings
+    res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -108,12 +102,18 @@ const updateBookingStatus = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Compare raw ObjectIds (not populated) — findById returns unpopulated refs
-    const isUser   = booking.userId.toString()   === req.user._id.toString();
-    const isExpert = booking.expertId.toString() === req.user._id.toString();
+    // Compare raw ObjectIds safely — handle both ObjectId objects and strings
+    const bookingUserId   = booking.userId?.toString()   || '';
+    const bookingExpertId = booking.expertId?.toString() || '';
+    const currentUserId   = req.user._id?.toString()     || '';
+
+    const isUser   = bookingUserId   === currentUserId;
+    const isExpert = bookingExpertId === currentUserId;
 
     if (!isUser && !isExpert) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ 
+        message: `Not authorized. Your ID: ${currentUserId}, booking userId: ${bookingUserId}, expertId: ${bookingExpertId}` 
+      });
     }
 
     // Role-based status restrictions
@@ -141,10 +141,7 @@ const updateBookingStatus = async (req, res) => {
       console.error('Notification error (non-fatal):', notifErr.message);
     }
 
-    res.json({
-      ...updatedBooking.toObject(),
-      _id: updatedBooking._id.toString(),
-    });
+    res.json(updatedBooking);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -193,6 +190,13 @@ const rescheduleBooking = async (req, res) => {
     if (!date || !startTime || !endTime) {
       return res.status(400).json({ message: 'date, startTime, and endTime are required' });
     }
+
+    // Validate time range
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const duration = (eh * 60 + em) - (sh * 60 + sm);
+    if (duration <= 0) return res.status(400).json({ message: 'End time must be after start time' });
+    if (duration > 60) return res.status(400).json({ message: 'Session cannot exceed 1 hour' });
 
     const booking = await Booking.findById(req.params.id);
     if (!booking) {

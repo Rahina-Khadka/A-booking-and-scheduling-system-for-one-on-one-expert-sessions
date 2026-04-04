@@ -21,6 +21,9 @@ const initiateKhaltiPayment = async (req, res) => {
     if (booking.userId._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
     }
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ message: 'Payment is only allowed after the session is completed' });
+    }
     if (booking.payment?.status === 'paid') {
       return res.status(400).json({ message: 'Booking already paid' });
     }
@@ -73,16 +76,17 @@ const verifyKhaltiPayment = async (req, res) => {
     const verification = await verifyKhalti(pidx);
 
     if (verification.status !== 'Completed') {
-      booking.payment.status = 'failed';
-      await booking.save();
+      if (booking.payment) {
+        booking.payment.status = 'failed';
+        await booking.save();
+      }
       return res.status(400).json({ message: `Payment not completed. Status: ${verification.status}` });
     }
 
-    // Mark booking as paid and confirmed
+    // Mark payment as paid (booking status stays 'completed')
     booking.payment.status = 'paid';
     booking.payment.transactionId = verification.transaction_id;
     booking.payment.paidAt = new Date();
-    booking.status = 'confirmed';
     await booking.save();
 
     res.json({ message: 'Payment verified successfully', booking });
@@ -107,6 +111,9 @@ const initiateEsewaPayment = async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ message: 'Payment is only allowed after the session is completed' });
     }
     if (booking.payment?.status === 'paid') {
       return res.status(400).json({ message: 'Booking already paid' });
@@ -143,13 +150,22 @@ const verifyEsewaPayment = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-    // Server-side signature verification
-    const decoded = await verifyEsewa(encodedData);
+    // Server-side signature + status verification — throws on failure
+    let decoded;
+    try {
+      decoded = await verifyEsewa(encodedData);
+    } catch (verifyErr) {
+      // Mark payment as failed so UI reflects it
+      if (booking.payment) {
+        booking.payment.status = 'failed';
+        await booking.save();
+      }
+      return res.status(400).json({ message: verifyErr.message });
+    }
 
     booking.payment.status = 'paid';
     booking.payment.refId = decoded.transaction_code;
     booking.payment.paidAt = new Date();
-    booking.status = 'confirmed';
     await booking.save();
 
     res.json({ message: 'eSewa payment verified successfully', booking });

@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import notificationService from '../services/notificationService';
 
 const TYPE_CONFIG = {
   booking_confirmed:  { icon: '✅', color: 'bg-green-100 text-green-600' },
-  booking_cancelled:  { icon: '❌', color: 'bg-red-100 text-red-600' },
-  booking_rejected:   { icon: '⛔', color: 'bg-red-100 text-red-600' },
+  booking_cancelled:  { icon: '❌', color: 'bg-red-50 text-red-600 border border-red-200' },
+  booking_rejected:   { icon: '⛔', color: 'bg-red-50 text-red-600 border border-red-200' },
   session_reminder:   { icon: '⏰', color: 'bg-blue-100 text-blue-600' },
   new_review:         { icon: '⭐', color: 'bg-amber-100 text-amber-600' },
   verification_update:{ icon: '🛡️', color: 'bg-purple-100 text-purple-600' },
@@ -77,7 +77,7 @@ const NotificationBell = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button onClick={handleToggle} className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors">
-        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
@@ -90,31 +90,31 @@ const NotificationBell = () => {
       <AnimatePresence>
         {isOpen && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-            className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100 bg-gray-50">
-              <span className="font-semibold text-gray-900 text-sm">Notifications {unreadCount > 0 && <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">{unreadCount}</span>}</span>
-              {unreadCount > 0 && <button onClick={handleMarkAllAsRead} className="text-xs text-indigo-600 hover:underline">Mark all read</button>}
+            className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 z-50 overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-stone-200 bg-stone-50">
+              <span className="font-semibold text-stone-900 text-sm">Notifications {unreadCount > 0 && <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">{unreadCount}</span>}</span>
+              {unreadCount > 0 && <button onClick={handleMarkAllAsRead} className="text-xs text-accent-600 hover:underline">Mark all read</button>}
             </div>
             <div className="max-h-96 overflow-y-auto">
               {loading ? (
-                <div className="p-8 text-center"><div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" /></div>
+                <div className="p-8 text-center"><div className="w-6 h-6 border-2 border-stone-200 border-t-brand-600 rounded-full animate-spin mx-auto" /></div>
               ) : notifications.length === 0 ? (
-                <div className="p-10 text-center"><p className="text-3xl mb-2">🔕</p><p className="text-sm text-gray-400">No notifications yet</p></div>
+                <div className="p-10 text-center"><p className="text-3xl mb-2">🔕</p><p className="text-sm text-stone-400">No notifications yet</p></div>
               ) : notifications.map(n => {
-                const cfg = TYPE_CONFIG[n.type] || { icon: '🔔', color: 'bg-gray-100 text-gray-600' };
+                const cfg = TYPE_CONFIG[n.type] || { icon: '🔔', color: 'bg-gray-100 text-stone-600' };
                 return (
-                  <div key={n._id} className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${!n.isRead ? 'bg-indigo-50/40' : ''}`}>
+                  <div key={n._id} className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-stone-50 ${!n.isRead ? 'bg-accent-50/40' : ''}`}>
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5 ${cfg.color}`}>{cfg.icon}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-900">{n.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-xs font-semibold text-stone-900">{n.title}</p>
+                      <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{n.message}</p>
                       <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-gray-400">{timeAgo(n.createdAt)}</span>
-                        {n.link && <Link to={n.link} onClick={() => { handleMarkAsRead(n._id); setIsOpen(false); }} className="text-xs text-indigo-600 font-medium hover:underline">View →</Link>}
-                        {!n.isRead && <button onClick={() => handleMarkAsRead(n._id)} className="text-xs text-gray-400 hover:text-indigo-600">Mark read</button>}
+                        <span className="text-xs text-stone-400">{timeAgo(n.createdAt)}</span>
+                        {n.link && <Link to={n.link} onClick={() => { handleMarkAsRead(n._id); setIsOpen(false); }} className="text-xs text-accent-600 font-medium hover:underline">View →</Link>}
+                        {!n.isRead && <button onClick={() => handleMarkAsRead(n._id)} className="text-xs text-stone-400 hover:text-accent-600">Mark read</button>}
                       </div>
                     </div>
-                    <button onClick={() => handleDelete(n._id)} className="text-gray-300 hover:text-red-400 text-lg leading-none mt-0.5">×</button>
+                    <button onClick={() => handleDelete(n._id)} className="text-neutral-300 hover:text-red-400 text-lg leading-none mt-0.5">×</button>
                   </div>
                 );
               })}

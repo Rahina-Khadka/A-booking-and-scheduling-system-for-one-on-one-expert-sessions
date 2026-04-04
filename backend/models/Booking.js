@@ -71,7 +71,23 @@ const bookingSchema = new mongoose.Schema({
     }
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: {
+    transform(doc, ret) {
+      ret._id = ret._id.toString();
+      if (ret.userId?._id) ret.userId._id = ret.userId._id.toString();
+      if (ret.expertId?._id) ret.expertId._id = ret.expertId._id.toString();
+      return ret;
+    }
+  },
+  toObject: {
+    transform(doc, ret) {
+      ret._id = ret._id.toString();
+      if (ret.userId?._id) ret.userId._id = ret.userId._id.toString();
+      if (ret.expertId?._id) ret.expertId._id = ret.expertId._id.toString();
+      return ret;
+    }
+  }
 });
 
 // Indexes for faster queries

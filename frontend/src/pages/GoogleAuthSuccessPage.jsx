@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const ROLE_REDIRECTS = {
@@ -56,7 +56,7 @@ const GoogleAuthSuccessPage = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-cyan-500">
+    <div className="min-h-screen flex items-center justify-center bg-stone-900">
       <div className="text-center text-white">
         <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-6" />
         <p className="text-xl font-medium">{status}</p>

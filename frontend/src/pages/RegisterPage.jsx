@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
@@ -71,10 +71,10 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-500 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-accent-50 via-stone-50 to-green-50 flex items-center justify-center px-4 py-10">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-cyan-400/20 rounded-full blur-3xl" />
+        <div className="absolute top-20 right-10 w-72 h-72 bg-accent-600/10 rounded-full blur-[80px]" />
+        <div className="absolute bottom-20 left-10 w-96 h-96 bg-accent-600/8 rounded-full blur-[80px]" />
       </div>
 
       <motion.div
@@ -85,16 +85,16 @@ const RegisterPage = () => {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-accent-600 flex items-center justify-center">
               <span className="text-white font-bold text-lg">E</span>
             </div>
-            <span className="text-2xl font-bold text-white">ExpertBook</span>
+            <span className="text-2xl font-bold text-stone-900">ExpertBook</span>
           </Link>
-          <p className="text-white/70 mt-2 text-sm">Start your mentorship journey</p>
+          <p className="text-stone-500 mt-2 text-sm">Start your mentorship journey</p>
         </div>
 
         <div className="glass-card rounded-3xl p-8 shadow-2xl">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Create your account</h2>
+          <h2 className="text-2xl font-bold text-stone-900 mb-6">Create your account</h2>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-5 text-sm">
@@ -109,14 +109,14 @@ const RegisterPage = () => {
                 type="button"
                 onClick={handleGoogleSignUp}
                 whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 px-6 py-3 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all font-medium shadow-sm mb-4"
+                className="w-full flex items-center justify-center gap-3 bg-white border-2 border-stone-200 text-stone-700 px-6 py-3 rounded-xl hover:border-indigo-300 hover:bg-accent-50 transition-all font-medium shadow-sm mb-4"
               >
                 <GoogleIcon />
                 Sign up with Google
               </motion.button>
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs text-gray-400">or register with email</span>
+                <span className="text-xs text-stone-400">or register with email</span>
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
             </>
@@ -124,31 +124,31 @@ const RegisterPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">Full Name</label>
               <input
                 type="text" name="name" value={formData.name} onChange={handleChange} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none transition bg-white/80 text-sm"
                 placeholder="John Doe"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
               <input
                 type="email" name="email" value={formData.email} onChange={handleChange} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none transition bg-white/80 text-sm"
                 placeholder="you@example.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">Password</label>
               <input
                 type="password" name="password" value={formData.password} onChange={handleChange} required minLength="6"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition bg-white/80 text-sm"
+                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none transition bg-white/80 text-sm"
                 placeholder="Min. 6 characters"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">I want to join as</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">I want to join as</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { value: 'user', label: '🎓 Learner', desc: 'Find a mentor' },
@@ -158,13 +158,13 @@ const RegisterPage = () => {
                     key={opt.value}
                     className={`cursor-pointer rounded-xl border-2 p-3 text-center transition-all ${
                       formData.role === opt.value
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-200'
+                        ? 'border-indigo-500 bg-accent-50'
+                        : 'border-stone-200 hover:border-accent-200'
                     }`}
                   >
                     <input type="radio" name="role" value={opt.value} checked={formData.role === opt.value} onChange={handleChange} className="sr-only" />
-                    <div className="text-sm font-semibold text-gray-800">{opt.label}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
+                    <div className="text-sm font-semibold text-stone-800">{opt.label}</div>
+                    <div className="text-xs text-stone-500 mt-0.5">{opt.desc}</div>
                   </label>
                 ))}
               </div>
@@ -177,18 +177,18 @@ const RegisterPage = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/50 space-y-3"
+                className="border border-accent-100 rounded-2xl p-4 bg-accent-50/50 space-y-3"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-indigo-600 text-lg">📋</span>
-                  <p className="text-sm font-semibold text-gray-800">Verification Documents</p>
+                  <span className="text-accent-600 text-lg">📋</span>
+                  <p className="text-sm font-semibold text-stone-800">Verification Documents</p>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-stone-500 mb-3">
                   Upload your documents so our admin can verify your credentials. Your profile will be visible after approval.
                 </p>
                 {DOC_FIELDS.map(({ key, label, required, accept }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-stone-700 mb-1">
                       {label} {required && <span className="text-red-500">*</span>}
                     </label>
                     <div
@@ -196,7 +196,7 @@ const RegisterPage = () => {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all text-sm ${
                         documents[key]
                           ? 'border-green-400 bg-green-50 text-green-700'
-                          : 'border-gray-200 bg-white hover:border-indigo-300 text-gray-500'
+                          : 'border-stone-200 bg-white hover:border-indigo-300 text-stone-500'
                       }`}
                     >
                       <span className="text-base">{documents[key] ? '✅' : '📎'}</span>
@@ -217,15 +217,15 @@ const RegisterPage = () => {
             <motion.button
               type="submit" disabled={loading}
               whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full py-3 rounded-xl bg-accent-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </motion.button>
           </form>
 
-          <p className="text-center mt-5 text-sm text-gray-500">
+          <p className="text-center mt-5 text-sm text-stone-500">
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-600 font-semibold hover:underline">Sign in</Link>
+            <Link to="/login" className="text-accent-600 font-semibold hover:underline">Sign in</Link>
           </p>
         </div>
       </motion.div>

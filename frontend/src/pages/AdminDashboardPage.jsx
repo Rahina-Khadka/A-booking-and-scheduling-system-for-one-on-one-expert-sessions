@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ const AdminDashboardPage = () => {
   const [experts, setExperts] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [pendingExperts, setPendingExperts] = useState([]);
+  const [pendingScanPayments, setPendingScanPayments] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [docViewer, setDocViewer] = useState(null);
@@ -42,18 +43,20 @@ const AdminDashboardPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsData, usersData, expertsData, bookingsData, pendingData] = await Promise.all([
+      const [statsData, usersData, expertsData, bookingsData, pendingData, scanPaymentsData] = await Promise.all([
         adminService.getSystemStats(),
         adminService.getAllUsers(),
         adminService.getAllExperts(),
         adminService.getAllBookings(),
-        adminService.getPendingExperts()
+        adminService.getPendingExperts(),
+        adminService.getPendingScanPayments()
       ]);
       setStats(statsData.stats);
       setUsers(usersData);
       setExperts(expertsData);
       setBookings(bookingsData);
       setPendingExperts(pendingData);
+      setPendingScanPayments(scanPaymentsData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -97,45 +100,59 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handleScanPayment = async (bookingId, action) => {
+    try {
+      await adminService.verifyScanPayment(bookingId, action);
+      fetchData();
+    } catch (error) {
+      alert('Failed to update payment');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <Navbar />
-        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-stone-200 border-t-brand-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-stone-50">
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-stone-700 flex items-center justify-center">
             <span className="text-white text-lg">🛡️</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-sm text-gray-500">System management panel</p>
+            <h1 className="text-2xl font-bold text-stone-900">Admin Dashboard</h1>
+            <p className="text-sm text-stone-500">System management panel</p>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2 flex-wrap">
-          {['overview', 'analytics', 'verification', 'users', 'experts', 'bookings'].map((tab) => (
+          {['overview', 'analytics', 'verification', 'payments', 'users', 'experts', 'bookings'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-xl text-sm font-medium capitalize transition-all flex items-center gap-1.5 ${
                 activeTab === tab
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  ? 'bg-accent-600 text-white shadow-sm'
+                  : 'bg-white text-stone-600 border border-stone-200 hover:border-accent-300 hover:text-accent-600'
               }`}
             >
               {tab === 'verification' && pendingExperts.length > 0 && (
-                <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${activeTab === tab ? 'bg-white text-indigo-600' : 'bg-red-500 text-white'}`}>
+                <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${activeTab === tab ? 'bg-white text-accent-600' : 'bg-red-500 text-white'}`}>
                   {pendingExperts.length}
+                </span>
+              )}
+              {tab === 'payments' && pendingScanPayments.length > 0 && (
+                <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${activeTab === tab ? 'bg-white text-accent-600' : 'bg-red-500 text-white'}`}>
+                  {pendingScanPayments.length}
                 </span>
               )}
               {tab}
@@ -148,9 +165,9 @@ const AdminDashboardPage = () => {
           <div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
               {[
-                { label:'Total Users', value: stats.totalUsers, color:'bg-indigo-50 border-indigo-100 text-indigo-700', icon:'👥', tab:'users' },
+                { label:'Total Users', value: stats.totalUsers, color:'bg-accent-50 border-accent-100 text-accent-700', icon:'👥', tab:'users' },
                 { label:'Total Experts', value: stats.totalExperts, color:'bg-green-50 border-green-100 text-green-700', icon:'🎓', tab:'experts' },
-                { label:'Total Bookings', value: stats.totalBookings, color:'bg-cyan-50 border-cyan-100 text-cyan-700', icon:'📅', tab:'bookings' },
+                { label:'Total Bookings', value: stats.totalBookings, color:'bg-cyan-50 border-accent-100 text-accent-700', icon:'📅', tab:'bookings' },
                 { label:'Completed Sessions', value: stats.completedBookings, color:'bg-blue-50 border-blue-100 text-blue-700', icon:'✅', tab:'bookings' },
                 { label:'Pending Bookings', value: stats.pendingBookings, color:'bg-yellow-50 border-yellow-100 text-yellow-700', icon:'⏳', tab:'bookings' },
                 { label:'Total Reviews', value: stats.totalReviews, color:'bg-purple-50 border-purple-100 text-purple-700', icon:'⭐', tab:'analytics' },
@@ -170,31 +187,45 @@ const AdminDashboardPage = () => {
         {activeTab === 'analytics' && (
           <div className="space-y-6">
             {/* Filters */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
               <div className="flex flex-wrap gap-4 items-end">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Start Date</label>
                   <input type="date" value={dateRange.startDate}
-                    onChange={e => setDateRange(p => ({ ...p, startDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none" />
+                    max={dateRange.endDate || undefined}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setDateRange(p => ({
+                        startDate: val,
+                        endDate: p.endDate && val > p.endDate ? val : p.endDate
+                      }));
+                    }}
+                    className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">End Date</label>
                   <input type="date" value={dateRange.endDate}
-                    onChange={e => setDateRange(p => ({ ...p, endDate: e.target.value }))}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none" />
+                    min={dateRange.startDate || undefined}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setDateRange(p => ({
+                        startDate: p.startDate && val < p.startDate ? val : p.startDate,
+                        endDate: val
+                      }));
+                    }}
+                    className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Group By</label>
+                  <label className="block text-xs font-medium text-stone-500 mb-1">Group By</label>
                   <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-500 outline-none">
                     <option value="day">Day</option>
                     <option value="week">Week</option>
                     <option value="month">Month</option>
                   </select>
                 </div>
                 <button onClick={fetchAnalytics}
-                  className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                  className="px-5 py-2 bg-accent-600 text-white hover:bg-accent-700 transition">
                   Apply
                 </button>
                 <button onClick={() => adminService.exportCSV(dateRange)}
@@ -206,7 +237,7 @@ const AdminDashboardPage = () => {
 
             {analyticsLoading ? (
               <div className="flex justify-center py-16">
-                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-stone-200 border-t-brand-600 rounded-full animate-spin" />
               </div>
             ) : analytics ? (
               <>
@@ -215,7 +246,7 @@ const AdminDashboardPage = () => {
                   {[
                     { label: 'Total Revenue', value: `NPR ${analytics.summary.totalRevenue.toLocaleString()}`, icon: '💰', color: 'bg-green-50 border-green-100 text-green-700' },
                     { label: 'Paid Sessions', value: analytics.summary.paidSessions, icon: '✅', color: 'bg-blue-50 border-blue-100 text-blue-700' },
-                    { label: 'Total Bookings', value: analytics.summary.totalBookings, icon: '📅', color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+                    { label: 'Total Bookings', value: analytics.summary.totalBookings, icon: '📅', color: 'bg-accent-50 border-accent-100 text-accent-700' },
                     { label: 'Completion Rate', value: `${analytics.summary.completionRate}%`, icon: '📈', color: 'bg-purple-50 border-purple-100 text-purple-700' },
                   ].map(k => (
                     <div key={k.label} className={`rounded-2xl border p-5 ${k.color}`}>
@@ -227,8 +258,8 @@ const AdminDashboardPage = () => {
                 </div>
 
                 {/* Revenue Over Time */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenue Over Time (NPR)</h3>
+                <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                  <h3 className="text-sm font-semibold text-stone-700 mb-4">Revenue Over Time (NPR)</h3>
                   <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={analytics.revenueOverTime.map(d => ({
                       label: d._id.day ? `${d._id.day}/${d._id.month}` : d._id.week ? `W${d._id.week}` : `${d._id.month}/${d._id.year}`,
@@ -249,8 +280,8 @@ const AdminDashboardPage = () => {
                 {/* Booking Status Breakdown + User Growth */}
                 <div className="grid lg:grid-cols-2 gap-6">
                   {/* Status Pie */}
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-4">Booking Status Breakdown</h3>
+                  <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                    <h3 className="text-sm font-semibold text-stone-700 mb-4">Booking Status Breakdown</h3>
                     <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
                         <Pie data={analytics.statusBreakdown.map(s => ({ name: s._id, value: s.count }))}
@@ -265,8 +296,8 @@ const AdminDashboardPage = () => {
                   </div>
 
                   {/* User Growth */}
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-4">New User Registrations</h3>
+                  <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                    <h3 className="text-sm font-semibold text-stone-700 mb-4">New User Registrations</h3>
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={analytics.userGrowth.map(d => ({
                         label: d._id.day ? `${d._id.day}/${d._id.month}` : `${d._id.month}/${d._id.year}`,
@@ -283,12 +314,12 @@ const AdminDashboardPage = () => {
                 </div>
 
                 {/* Top Experts Table */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Experts by Revenue</h3>
+                <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
+                  <h3 className="text-sm font-semibold text-stone-700 mb-4">Top Experts by Revenue</h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
+                        <tr className="bg-stone-50 text-xs text-stone-500 uppercase">
                           <th className="px-4 py-3 text-left">#</th>
                           <th className="px-4 py-3 text-left">Expert</th>
                           <th className="px-4 py-3 text-left">Expertise</th>
@@ -299,16 +330,16 @@ const AdminDashboardPage = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {analytics.topExperts.map((e, i) => (
-                          <tr key={e._id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-gray-400 font-medium">{i + 1}</td>
+                          <tr key={e._id} className="hover:bg-stone-50">
+                            <td className="px-4 py-3 text-stone-400 font-medium">{i + 1}</td>
                             <td className="px-4 py-3">
-                              <p className="font-medium text-gray-900">{e.name}</p>
-                              <p className="text-xs text-gray-400">{e.email}</p>
+                              <p className="font-medium text-stone-900">{e.name}</p>
+                              <p className="text-xs text-stone-400">{e.email}</p>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex flex-wrap gap-1">
                                 {e.expertise?.slice(0, 2).map((s, j) => (
-                                  <span key={j} className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
+                                  <span key={j} className="bg-accent-50 text-accent-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
                                 ))}
                               </div>
                             </td>
@@ -323,7 +354,7 @@ const AdminDashboardPage = () => {
                 </div>
               </>
             ) : (
-              <div className="text-center py-16 text-gray-400">Click Apply to load analytics</div>
+              <div className="text-center py-16 text-stone-400">Click Apply to load analytics</div>
             )}
           </div>
         )}
@@ -332,31 +363,31 @@ const AdminDashboardPage = () => {
         {activeTab === 'verification' && (
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Expert Verification</h2>
-              <span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <h2 className="text-lg font-bold text-stone-900">Expert Verification</h2>
+              <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full">
                 {pendingExperts.length} pending
               </span>
             </div>
             {pendingExperts.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+              <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
                 <p className="text-4xl mb-3">✅</p>
-                <p className="text-gray-500 text-sm">No pending verifications.</p>
+                <p className="text-stone-500 text-sm">No pending verifications.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {pendingExperts.map(expert => (
-                  <div key={expert._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div key={expert._id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 rounded-xl bg-accent-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden">
                           {expert.profilePicture
                             ? <img src={expert.profilePicture} alt="" className="w-full h-full object-cover" />
                             : expert.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{expert.name}</p>
-                          <p className="text-xs text-gray-500">{expert.email}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Registered {expert.createdAt ? new Date(expert.createdAt).toLocaleDateString() : '—'}</p>
+                          <p className="font-semibold text-stone-900">{expert.name}</p>
+                          <p className="text-xs text-stone-500">{expert.email}</p>
+                          <p className="text-xs text-stone-400 mt-0.5">Registered {expert.createdAt ? new Date(expert.createdAt).toLocaleDateString() : '—'}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -368,7 +399,7 @@ const AdminDashboardPage = () => {
                         </button>
                         <button
                           onClick={() => handleVerifyExpert(expert._id, 'rejected')}
-                          className="px-4 py-2 rounded-xl bg-red-100 text-red-600 text-sm font-semibold hover:bg-red-200 transition-colors"
+                          className="px-4 py-2 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm font-semibold hover:bg-red-200 transition-colors"
                         >
                           ✗ Reject
                         </button>
@@ -379,14 +410,14 @@ const AdminDashboardPage = () => {
                     {expert.expertise?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {expert.expertise.map((s, i) => (
-                          <span key={i} className="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full border border-indigo-100">{s}</span>
+                          <span key={i} className="bg-stone-100 text-stone-600 text-xs px-2.5 py-1 rounded-md border border-stone-200">{s}</span>
                         ))}
                       </div>
                     )}
 
                     {/* Documents */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Uploaded Documents</p>
+                    <div className="mt-4 pt-4 border-t border-stone-200">
+                      <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">Uploaded Documents</p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
                           { key: 'resume', label: 'Resume / CV' },
@@ -400,8 +431,8 @@ const AdminDashboardPage = () => {
                             disabled={!expert.documents?.[key]}
                             className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-medium transition-all ${
                               expert.documents?.[key]
-                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer'
-                                : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                                ? 'border-accent-200 bg-accent-50 text-accent-700 hover:bg-indigo-100 cursor-pointer'
+                                : 'border-stone-200 bg-stone-50 text-neutral-300 cursor-not-allowed'
                             }`}
                           >
                             <span className="text-xl">{expert.documents?.[key] ? '📄' : '—'}</span>
@@ -417,17 +448,77 @@ const AdminDashboardPage = () => {
           </div>
         )}
 
+        {/* Payments Tab */}
+        {activeTab === 'payments' && (
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <h2 className="text-lg font-bold text-stone-900">Scan Payment Verification</h2>
+              <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full">
+                {pendingScanPayments.length} pending
+              </span>
+            </div>
+            {pendingScanPayments.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
+                <p className="text-4xl mb-3">✅</p>
+                <p className="text-stone-500 text-sm">No pending scan payments.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingScanPayments.map(b => (
+                  <div key={b._id} className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-stone-900">{b.userId?.name} <span className="text-stone-400 font-normal text-sm">→ {b.expertId?.name}</span></p>
+                        <p className="text-xs text-stone-400 mt-0.5">{b.userId?.email}</p>
+                        <p className="text-xs text-stone-500 mt-1">
+                          {new Date(b.date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' })} · {b.startTime}
+                          {b.topic && ` · ${b.topic}`}
+                        </p>
+                        <p className="text-sm font-semibold text-green-700 mt-1">NPR {b.payment?.amount || b.expertId?.hourlyRate || '—'}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleScanPayment(b._id, 'approve')}
+                          className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-colors"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => handleScanPayment(b._id, 'reject')}
+                          className="px-4 py-2 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm font-semibold hover:bg-red-100 transition-colors"
+                        >
+                          ✗ Reject
+                        </button>
+                      </div>
+                    </div>
+                    {b.payment?.scanProof && (
+                      <div className="mt-4 pt-4 border-t border-stone-100">
+                        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Payment Screenshot</p>
+                        <img
+                          src={b.payment.scanProof}
+                          alt="Payment proof"
+                          className="max-h-64 rounded-xl border border-stone-200 object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Joined</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -437,12 +528,12 @@ const AdminDashboardPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs ${
-                        user.role === 'expert' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        user.role === 'expert' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-stone-800'
                       }`}>
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500">
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -464,13 +555,13 @@ const AdminDashboardPage = () => {
         {activeTab === 'experts' && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expertise</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Rating</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Expertise</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -509,13 +600,13 @@ const AdminDashboardPage = () => {
         {activeTab === 'bookings' && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-stone-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expert</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Expert</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Status</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -532,7 +623,7 @@ const AdminDashboardPage = () => {
                         booking.status === 'completed' ? 'bg-green-100 text-green-800' :
                         booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
                         booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
+                        'bg-gray-100 text-stone-800'
                       }`}>
                         {booking.status}
                       </span>
@@ -556,14 +647,14 @@ const AdminDashboardPage = () => {
               onClick={e => e.stopPropagation()}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
             >
-              <div className="flex justify-between items-center p-5 border-b border-gray-100">
+              <div className="flex justify-between items-center p-5 border-b border-stone-200">
                 <div>
-                  <p className="font-bold text-gray-900">{docViewer.label}</p>
-                  <p className="text-xs text-gray-500">{docViewer.expert.name}</p>
+                  <p className="font-bold text-stone-900">{docViewer.label}</p>
+                  <p className="text-xs text-stone-500">{docViewer.expert.name}</p>
                 </div>
-                <button onClick={() => setDocViewer(null)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 text-xl">×</button>
+                <button onClick={() => setDocViewer(null)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-stone-500 text-xl">×</button>
               </div>
-              <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50">
+              <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-stone-50">
                 {docViewer.expert.documents[docViewer.docKey].startsWith('data:image') ? (
                   <img
                     src={docViewer.expert.documents[docViewer.docKey]}
@@ -573,11 +664,11 @@ const AdminDashboardPage = () => {
                 ) : (
                   <div className="text-center">
                     <p className="text-5xl mb-4">📄</p>
-                    <p className="text-sm text-gray-600 mb-4">This document is a PDF or non-image file.</p>
+                    <p className="text-sm text-stone-600 mb-4">This document is a PDF or non-image file.</p>
                     <a
                       href={docViewer.expert.documents[docViewer.docKey]}
                       download={`${docViewer.expert.name}-${docViewer.docKey}`}
-                      className="px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors"
+                      className="px-5 py-2.5 rounded-xl bg-accent-600 text-white hover:bg-accent-700 transition-colors"
                     >
                       Download Document
                     </a>

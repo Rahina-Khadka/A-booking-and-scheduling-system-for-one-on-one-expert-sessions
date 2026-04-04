@@ -9,7 +9,9 @@ const {
   getPendingExperts,
   verifyExpert,
   getAnalytics,
-  exportCSV
+  exportCSV,
+  getPendingScanPayments,
+  verifyScanPayment
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
 const { adminOnly } = require('../middleware/adminAuth');
@@ -28,5 +30,9 @@ router.put('/users/:id/role', protect, adminOnly, updateUserRole);
 // Analytics
 router.get('/analytics', protect, adminOnly, getAnalytics);
 router.get('/analytics/export/csv', protect, adminOnly, exportCSV);
+
+// Scan payment verification
+router.get('/payments/scan-pending', protect, adminOnly, getPendingScanPayments);
+router.put('/payments/:bookingId/scan-verify', protect, adminOnly, verifyScanPayment);
 
 module.exports = router;

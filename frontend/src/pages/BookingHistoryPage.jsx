@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import BookingCard from '../components/BookingCard';
@@ -32,12 +32,13 @@ const BookingHistoryPage = () => {
 
   const handleStatusChange = async (bookingId, status) => {
     try {
-      await bookingService.updateBookingStatus(bookingId, status);
-      // Refresh bookings
+      const id = String(bookingId);
+      await bookingService.updateBookingStatus(id, status);
       fetchBookings();
     } catch (error) {
-      console.error('Error updating booking:', error);
-      alert('Failed to update booking status');
+      const msg = error.response?.data?.message || error.message || 'Failed to update booking status';
+      console.error('Status update error:', msg);
+      alert(msg);
     }
   };
 
@@ -62,12 +63,12 @@ const BookingHistoryPage = () => {
   const isExpert = user?.role === 'expert';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <Navbar />
       <SessionReminderBanner />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+        <h1 className="text-3xl font-bold text-stone-900 mb-8">
           {isExpert ? 'My Sessions' : 'My Bookings'}
         </h1>
 
@@ -79,8 +80,8 @@ const BookingHistoryPage = () => {
               onClick={() => setFilter(status)}
               className={`px-4 py-2 rounded-lg capitalize ${
                 filter === status
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  ? 'bg-accent-600 text-white'
+                  : 'bg-white text-stone-700 border border-gray-300 hover:bg-stone-50'
               }`}
             >
               {status}
@@ -90,7 +91,7 @@ const BookingHistoryPage = () => {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="text-xl text-gray-600">Loading bookings...</div>
+            <div className="text-xl text-stone-600">Loading bookings...</div>
           </div>
         ) : filteredBookings.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -107,8 +108,8 @@ const BookingHistoryPage = () => {
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg shadow-md">
-            <p className="text-xl text-gray-600">No bookings found</p>
-            <p className="text-gray-500 mt-2">
+            <p className="text-xl text-stone-600">No bookings found</p>
+            <p className="text-stone-500 mt-2">
               {filter === 'all' 
                 ? 'You haven\'t made any bookings yet' 
                 : `No ${filter} bookings`}

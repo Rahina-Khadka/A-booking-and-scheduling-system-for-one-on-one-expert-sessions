@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import paymentService from '../services/paymentService';
 import userService from '../services/userService';
 import api from '../services/api';
@@ -85,13 +85,13 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Pay for Session</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+          <h2 className="text-xl font-bold text-stone-900">Pay for Session</h2>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-2xl leading-none">&times;</button>
         </div>
 
-        <div className="bg-gray-50 rounded-xl p-4 mb-5">
-          <p className="text-sm text-gray-600">Session with <span className="font-semibold">{booking.expertId?.name}</span></p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">NPR {amount}</p>
+        <div className="bg-stone-50 rounded-xl p-4 mb-5">
+          <p className="text-sm text-stone-600">Session with <span className="font-semibold">{booking.expertId?.name}</span></p>
+          <p className="text-2xl font-bold text-stone-900 mt-1">NPR {amount}</p>
         </div>
 
         {error && (
@@ -102,42 +102,42 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
           <div className="text-center py-6">
             <div className="text-5xl mb-3">✅</div>
             <p className="font-semibold text-green-700">Payment proof submitted!</p>
-            <p className="text-xs text-gray-400 mt-1">Admin will verify and confirm shortly.</p>
+            <p className="text-xs text-stone-400 mt-1">Admin will verify and confirm shortly.</p>
           </div>
         ) : activeMethod === 'scan' ? (
           <div className="space-y-4">
             {booking.expertId?.paymentQr ? (
               <>
-                <p className="text-sm text-gray-600 text-center font-medium">Scan the QR code below to pay</p>
+                <p className="text-sm text-stone-600 text-center font-medium">Scan the QR code below to pay</p>
                 <div className="flex justify-center">
                   <img
                     src={booking.expertId.paymentQr}
                     alt="Payment QR"
-                    className="max-h-52 rounded-2xl border border-gray-200 shadow-md object-contain"
+                    className="max-h-52 rounded-2xl border border-stone-200 shadow-md object-contain"
                   />
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
                   <p className="text-sm font-semibold text-blue-800">Amount: NPR {amount}</p>
                   <p className="text-xs text-blue-600 mt-0.5">Pay to: <span className="font-medium">{booking.expertId?.name}</span></p>
                 </div>
-                <p className="text-xs text-gray-400 text-center">After paying, upload your payment screenshot below as proof.</p>
+                <p className="text-xs text-stone-400 text-center">After paying, upload your payment screenshot below as proof.</p>
               </>
             ) : (
               <div className="text-center py-4">
                 <p className="text-3xl mb-2">📵</p>
-                <p className="text-sm text-gray-500">This expert hasn't set up a QR code yet.</p>
-                <p className="text-xs text-gray-400 mt-1">Please use Khalti or eSewa instead.</p>
+                <p className="text-sm text-stone-500">This expert hasn't set up a QR code yet.</p>
+                <p className="text-xs text-stone-400 mt-1">Please use Khalti or eSewa instead.</p>
               </div>
             )}
 
             {/* Upload payment proof */}
             {booking.expertId?.paymentQr && (
               <>
-                <p className="text-sm font-medium text-gray-700 text-center">Upload your payment screenshot</p>
+                <p className="text-sm font-medium text-stone-700 text-center">Upload your payment screenshot</p>
                 <div
                   onClick={() => fileRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-                    scanPreview ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                    scanPreview ? 'border-blue-400 bg-blue-50' : 'border-stone-200 hover:border-blue-300'
                   }`}
                 >
                   {scanPreview ? (
@@ -145,7 +145,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                   ) : (
                     <div>
                       <p className="text-2xl mb-1">📷</p>
-                      <p className="text-sm text-gray-500">Click to upload screenshot</p>
+                      <p className="text-sm text-stone-500">Click to upload screenshot</p>
                     </div>
                   )}
                 </div>
@@ -156,7 +156,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
             <div className="flex gap-3">
               <button
                 onClick={() => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); }}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50"
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50"
               >
                 ← Back
               </button>
@@ -173,7 +173,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-4 text-center">Choose your payment method</p>
+            <p className="text-sm text-stone-500 mb-4 text-center">Choose your payment method</p>
             <div className="space-y-3">
               {METHODS.map(m => (
                 <button
@@ -190,17 +190,17 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                     <span className="text-white font-bold text-sm">{m.icon}</span>
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-gray-900">{m.label}</p>
-                    <p className="text-xs text-gray-500">{m.sub}</p>
+                    <p className="font-semibold text-stone-900">{m.label}</p>
+                    <p className="text-xs text-stone-500">{m.sub}</p>
                   </div>
                 </button>
               ))}
             </div>
-            {loading && <p className="text-center text-sm text-gray-500 mt-4">Redirecting to payment gateway...</p>}
+            {loading && <p className="text-center text-sm text-stone-500 mt-4">Redirecting to payment gateway...</p>}
           </>
         )}
 
-        <p className="text-center text-xs text-gray-400 mt-4">
+        <p className="text-center text-xs text-stone-400 mt-4">
           🔒 Payments are securely processed and verified server-side
         </p>
       </div>
