@@ -51,4 +51,34 @@ const updateProfile = async (req, res) => {
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-module.exports = { getProfile, updateProfile };
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+
+    // Save history entry before changing
+    user.passwordHistory.push({ changedAt: new Date() });
+    // Keep only last 10 entries
+    if (user.passwordHistory.length > 10) {
+      user.passwordHistory = user.passwordHistory.slice(-10);
+    }
+
+    user.password = newPassword; // pre-save hook will hash it
+    await user.save();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+module.exports = { getProfile, updateProfile, changePassword };

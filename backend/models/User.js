@@ -109,7 +109,10 @@ const userSchema = new mongoose.Schema({
   paymentQr: {
     type: String,
     default: ''   // base64 QR/scan image uploaded by expert
-  }
+  },
+  passwordHistory: [{
+    changedAt: { type: Date, default: Date.now }
+  }]
 }, {
   timestamps: true,
   toJSON: {

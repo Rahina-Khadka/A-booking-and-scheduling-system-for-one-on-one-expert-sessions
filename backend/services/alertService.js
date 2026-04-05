@@ -43,7 +43,7 @@ const alertPaymentFailed = async ({ bookingId, gateway, amount, userId, error })
   logger.error('PAYMENT_FAILED', meta);
 
   await sendAdminEmail(
-    `🚨 Payment Failed — ${gateway?.toUpperCase()} | ExpertBook`,
+    `[ALERT] Payment Failed — ${gateway?.toUpperCase()} | ExpertBook`,
     `<h2>Payment Failure Alert</h2>
      <table>
        <tr><td><b>Booking ID</b></td><td>${bookingId}</td></tr>
@@ -64,7 +64,7 @@ const alertRefundFailed = async ({ bookingId, gateway, amount, error }) => {
   logger.error('REFUND_FAILED', meta);
 
   await sendAdminEmail(
-    `🚨 Refund Failed — ${gateway?.toUpperCase()} | ExpertBook`,
+    `[ALERT] Refund Failed — ${gateway?.toUpperCase()} | ExpertBook`,
     `<h2>Refund Failure Alert</h2>
      <table>
        <tr><td><b>Booking ID</b></td><td>${bookingId}</td></tr>
@@ -84,7 +84,7 @@ const alertServerError = async ({ route, method, statusCode, error, userId }) =>
   logger.error('SERVER_ERROR', meta);
 
   await sendAdminEmail(
-    `🚨 Server Error ${statusCode} — ${method} ${route} | ExpertBook`,
+    `[ALERT] Server Error ${statusCode} — ${method} ${route} | ExpertBook`,
     `<h2>Server Error Alert</h2>
      <table>
        <tr><td><b>Route</b></td><td>${method} ${route}</td></tr>

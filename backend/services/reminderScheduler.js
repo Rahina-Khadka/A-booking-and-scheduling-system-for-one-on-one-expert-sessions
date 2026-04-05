@@ -43,7 +43,7 @@ const send24hReminders = async () => {
 
     if (bookings.length === 0) return;
 
-    console.log(`⏰ [Reminder] Sending 24h reminders for ${bookings.length} session(s)`);
+  console.log(`[OK] Reminder scheduler: 24h reminders for ${bookings.length} session(s)`);
 
     for (const booking of bookings) {
       // Double-check the session start falls in the window
@@ -59,9 +59,9 @@ const send24hReminders = async () => {
           { $set: { 'reminders.sent24h': true } }
         );
 
-        console.log(`  ✅ 24h reminder sent: booking ${booking._id}`);
+        console.log(`  [OK] 24h reminder sent: booking ${booking._id}`);
       } catch (err) {
-        console.error(`  ❌ 24h reminder failed for ${booking._id}:`, err.message);
+        console.error(`  [ERROR] 24h reminder failed for ${booking._id}:`, err.message);
       }
     }
   } catch (error) {
@@ -89,7 +89,7 @@ const send1hReminders = async () => {
 
     if (bookings.length === 0) return;
 
-    console.log(`⏰ [Reminder] Sending 1h reminders for ${bookings.length} session(s)`);
+  console.log(`[OK] Reminder scheduler: 1h reminders for ${bookings.length} session(s)`);
 
     for (const booking of bookings) {
       const sessionStart = getSessionStart(booking);
@@ -103,9 +103,9 @@ const send1hReminders = async () => {
           { $set: { 'reminders.sent1h': true } }
         );
 
-        console.log(`  ✅ 1h reminder sent: booking ${booking._id}`);
+        console.log(`  [OK] 1h reminder sent: booking ${booking._id}`);
       } catch (err) {
-        console.error(`  ❌ 1h reminder failed for ${booking._id}:`, err.message);
+        console.error(`  [ERROR] 1h reminder failed for ${booking._id}:`, err.message);
       }
     }
   } catch (error) {
@@ -140,7 +140,7 @@ const startReminderScheduler = () => {
     await send1hReminders();
   });
 
-  console.log('✅ Reminder scheduler started (checking every 5 minutes)');
+  console.log('[OK] Reminder scheduler started (checking every 5 minutes)');
 };
 
 module.exports = { startReminderScheduler, resetReminders };

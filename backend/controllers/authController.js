@@ -21,7 +21,7 @@ const register = async (req, res) => {
     // Normalize email consistently
     const email = req.body.email?.toLowerCase().trim();
 
-    console.log('📝 Registration request received:', { name, email, role });
+    console.log('Registration request received:', { name, email, role });
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -35,7 +35,7 @@ const register = async (req, res) => {
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      console.log('❌ User already exists:', email);
+      console.log('[ERROR] User already exists:', email);
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
@@ -47,7 +47,7 @@ const register = async (req, res) => {
     }
 
     const user = await User.create(userData);
-    console.log('✅ User created successfully:', user._id, '| email:', user.email, '| DB:', require('mongoose').connection.name);
+    console.log('[OK] User created successfully:', user._id, '| email:', user.email, '| DB:', require('mongoose').connection.name);
 
     const token = generateToken(user._id);
     res.status(201).json({
@@ -59,7 +59,7 @@ const register = async (req, res) => {
       token: token
     });
   } catch (error) {
-    console.error('❌ Registration error:', error.message);
+    console.error('[ERROR] Registration error:', error.message);
     // Surface Mongoose validation errors clearly
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(e => e.message);
@@ -83,7 +83,7 @@ const login = async (req, res) => {
     const email = req.body.email?.toLowerCase().trim();
     const { password } = req.body;
 
-    console.log('🔐 Login request received:', { email });
+    console.log('Login request received:', { email });
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
@@ -92,21 +92,21 @@ const login = async (req, res) => {
     // Find user — email is stored lowercase by schema, but normalize input too
     const user = await User.findOne({ email }).select('+password');
 
-    console.log('🔍 DB query for email:', email, '| DB:', require('mongoose').connection.name, '| Found:', !!user);
+    console.log('DB query for email:', email, '| DB:', require('mongoose').connection.name, '| Found:', !!user);
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const isPasswordMatch = await user.comparePassword(password);
-    console.log('🔑 Password match:', isPasswordMatch);
+    console.log('Password match:', isPasswordMatch);
 
     if (!isPasswordMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     const token = generateToken(user._id);
-    console.log('✅ Login successful:', user._id);
+    console.log('[OK] Login successful:', user._id);
     res.json({
       _id: user._id,
       name: user.name,
@@ -115,7 +115,7 @@ const login = async (req, res) => {
       token: token
     });
   } catch (error) {
-    console.error('❌ Login error:', error.message);
+    console.error('[ERROR] Login error:', error.message);
     res.status(500).json({ message: error.message });
   }
 };

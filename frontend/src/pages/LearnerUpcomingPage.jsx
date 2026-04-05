@@ -40,7 +40,7 @@ const LearnerUpcomingPage = () => {
         ) : bookings.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl border border-stone-200 shadow-sm p-16 text-center">
-            <div className="text-6xl mb-4">📭</div>
+            <div className="text-6xl mb-4">📅</div>
             <h3 className="text-lg font-semibold text-stone-700 mb-2">No upcoming sessions</h3>
             <p className="text-sm text-stone-400 mb-6">Book a session with an expert and it will appear here once confirmed.</p>
             <Link to="/experts" className="px-6 py-2.5 rounded-xl bg-accent-600 text-white hover:bg-accent-700 transition-colors">

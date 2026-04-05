@@ -58,10 +58,10 @@ passport.use(
           profilePicture
         });
 
-        console.log(`✅ Google OAuth: new ${role} created — ${email}`);
+        console.log(`[OK] Google OAuth: new ${role} created — ${email}`);
         return done(null, user);
       } catch (error) {
-        console.error('❌ Google OAuth error:', error.message);
+        console.error('[ERROR] Google OAuth error:', error.message);
         return done(error, null);
       }
     }
@@ -69,9 +69,9 @@ passport.use(
 );
 
 if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'your_google_client_id') {
-  console.log('⚠️  Google OAuth not configured.');
+  console.log('WARNING: Google OAuth not configured.');
 } else {
-  console.log('✅ Google OAuth configured — admin emails:', adminEmails);
+  console.log('[OK] Google OAuth configured — admin emails:', adminEmails);
 }
 
 passport.serializeUser((user, done) => done(null, user.id));

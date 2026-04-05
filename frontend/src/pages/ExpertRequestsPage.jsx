@@ -57,7 +57,7 @@ const ExpertRequestsPage = () => {
         ) : bookings.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl border border-stone-200 shadow-sm p-16 text-center">
-            <div className="text-6xl mb-4">📭</div>
+            <div className="text-6xl mb-4">⏳</div>
             <h3 className="text-lg font-semibold text-stone-700 mb-2">No pending requests yet</h3>
             <p className="text-sm text-stone-400">When users book a session with you, they'll appear here.</p>
           </motion.div>

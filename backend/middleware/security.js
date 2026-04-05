@@ -21,7 +21,7 @@ const helmetMiddleware = helmet({
 const sanitizeMiddleware = mongoSanitize({
   replaceWith: '_',
   onSanitize: ({ req, key }) => {
-    console.warn(`⚠️  Sanitized suspicious input on key "${key}" from ${req.ip}`);
+    console.warn(`WARNING: Sanitized suspicious input on key "${key}" from ${req.ip}`);
   }
 });
 

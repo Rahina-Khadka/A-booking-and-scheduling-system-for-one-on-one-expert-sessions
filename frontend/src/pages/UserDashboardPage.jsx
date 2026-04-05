@@ -53,6 +53,9 @@ const UserDashboardPage = () => {
   const [expertWaiting, setExpertWaiting] = useState(null); // { bookingId, expertName }
   const fileInputRef = useRef(null);
   const [form, setForm] = useState({ name: '', phone: '', bio: '', interests: [], profilePicture: '' });
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -98,6 +101,18 @@ const UserDashboardPage = () => {
       setAvatarPreview(updated.profilePicture || null);
       setEditOpen(false);
     } catch (err) { alert(err.response?.data?.message || 'Save failed'); }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwError(''); setPwSuccess('');
+    if (pwForm.next !== pwForm.confirm) { setPwError('New passwords do not match'); return; }
+    if (pwForm.next.length < 6) { setPwError('Password must be at least 6 characters'); return; }
+    try {
+      await userService.changePassword(pwForm.current, pwForm.next);
+      setPwSuccess('Password changed successfully');
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err) { setPwError(err.response?.data?.message || 'Failed to change password'); }
   };
 
   const handleAvatar = async (e) => {
@@ -359,6 +374,33 @@ const UserDashboardPage = () => {
                 <button type="button" onClick={() => setEditOpen(false)} className="flex-1 bg-gray-100 text-stone-700 py-2.5 rounded-xl font-semibold hover:bg-gray-200 transition-colors">Cancel</button>
               </div>
             </form>
+
+            {/* Change Password */}
+            <div className="border-t border-stone-200 mt-6 pt-6">
+              <h3 className="text-sm font-bold text-stone-800 mb-4">Change Password</h3>
+              {pwError && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm mb-3">{pwError}</div>}
+              {pwSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl text-sm mb-3">{pwSuccess}</div>}
+              <form onSubmit={handlePasswordChange} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Current Password</label>
+                  <input type="password" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} required
+                    className="w-full px-4 py-2.5 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">New Password</label>
+                  <input type="password" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} required
+                    className="w-full px-4 py-2.5 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Confirm New Password</label>
+                  <input type="password" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} required
+                    className="w-full px-4 py-2.5 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 outline-none text-sm" />
+                </div>
+                <button type="submit" className="w-full bg-stone-800 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors">
+                  Update Password
+                </button>
+              </form>
+            </div>
           </Modal>
         )}
       </AnimatePresence>

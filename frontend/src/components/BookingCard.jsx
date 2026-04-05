@@ -71,7 +71,10 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
                 booking.payment.status === 'failed' ? 'bg-red-100 text-red-700' :
                 'bg-gray-100 text-stone-600'
               }`}>
-                {booking.payment.status}
+                {booking.payment.status === 'paid' ? '💰 Paid' :
+                 booking.payment.status === 'pending' ? '⏳ Verifying' :
+                 booking.payment.status === 'unpaid' ? '⚠ Unpaid' :
+                 booking.payment.status}
               </span>
             </p>
           )}
