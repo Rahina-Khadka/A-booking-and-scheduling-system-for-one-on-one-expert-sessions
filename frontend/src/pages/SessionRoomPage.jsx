@@ -134,6 +134,17 @@ const SessionRoomPage = () => {
       const bookings = await bookingService.getBookings();
       const current  = bookings.find(b => String(b._id) === String(bookingId));
       if (!current) { setError('Booking not found or you are not a participant.'); setLoading(false); return; }
+
+      // Block learner from joining if confirmed but not yet paid
+      const myUserId = String(user._id);
+      const bUserId = String(current.userId?._id || current.userId || '');
+      const isLearner = myUserId === bUserId;
+      if (isLearner && current.status === 'confirmed' && current.payment?.status !== 'paid') {
+        setError('Payment required before joining the session. Please pay first.');
+        setLoading(false);
+        return;
+      }
+
       setBooking(current);
 
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');

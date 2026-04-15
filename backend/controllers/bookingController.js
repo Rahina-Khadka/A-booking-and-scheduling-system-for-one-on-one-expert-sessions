@@ -26,7 +26,7 @@ const createBooking = async (req, res) => {
     if (duration <= 0) return res.status(400).json({ message: 'End time must be after start time' });
     if (duration > 60) return res.status(400).json({ message: 'Session cannot exceed 1 hour' });
 
-    // Create booking
+    // Create booking with locked session price
     const booking = await Booking.create({
       userId: req.user._id,
       expertId,
@@ -35,7 +35,8 @@ const createBooking = async (req, res) => {
       endTime,
       topic,
       notes,
-      status: 'pending'
+      status: 'pending',
+      sessionPrice: expert.hourlyRate || 0
     });
 
     // Populate user and expert details
@@ -71,7 +72,7 @@ const getBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate('userId', 'name email profilePicture')
-      .populate('expertId', 'name email expertise profilePicture hourlyRate paymentQr')
+      .populate('expertId', 'name email expertise profilePicture hourlyRate paymentQr paymentName')
       .sort({ date: -1 });
 
     // toJSON transform on schema ensures all _id fields are plain strings

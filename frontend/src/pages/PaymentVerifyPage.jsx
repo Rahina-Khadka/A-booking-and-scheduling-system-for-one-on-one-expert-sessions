@@ -34,7 +34,8 @@ const PaymentVerifyPage = () => {
         }
 
         setStatus('Payment successful! Redirecting...');
-        setTimeout(() => navigate('/learner/completed'), 2000);
+        // Redirect based on gateway context — both confirmed and completed sessions go to upcoming
+        setTimeout(() => navigate('/learner/upcoming'), 2000);
 
       } catch (err) {
         const msg = err.response?.data?.message || err.message || 'Payment verification failed';

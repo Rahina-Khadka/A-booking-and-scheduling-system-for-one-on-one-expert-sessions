@@ -37,8 +37,8 @@ router.post('/scan-proof', protect, async (req, res) => {
     if (booking.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    if (booking.status !== 'completed') {
-      return res.status(400).json({ message: 'Payment is only allowed after the session is completed' });
+    if (!['confirmed', 'completed'].includes(booking.status)) {
+      return res.status(400).json({ message: 'Payment is only allowed for confirmed or completed sessions' });
     }
 
     // Store scan proof and mark payment as pending verification

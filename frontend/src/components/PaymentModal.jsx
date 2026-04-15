@@ -6,14 +6,16 @@ import api from '../services/api';
 const PaymentModal = ({ booking, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeMethod, setActiveMethod] = useState(null); // 'khalti' | 'esewa' | 'scan'
+  const [activeMethod, setActiveMethod] = useState(null);
   const [scanFile, setScanFile] = useState(null);
   const [scanPreview, setScanPreview] = useState(null);
   const [scanSubmitting, setScanSubmitting] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const fileRef = useRef(null);
 
-  const amount = booking.expertId?.hourlyRate || 100;
+  const amount = booking.sessionPrice || booking.expertId?.hourlyRate || 100;
+  const payTo = booking.expertId?.paymentName || booking.expertId?.name || 'Expert';
 
   const handleKhalti = async () => {
     setLoading(true); setError('');
@@ -58,10 +60,10 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
   const handleScanSubmit = async () => {
     if (!scanPreview) { setError('Please upload your payment screenshot first.'); return; }
+    if (!confirmed) { setError(`Please confirm you have paid NPR ${amount}.`); return; }
     setScanSubmitting(true); setError('');
     try {
-      // Submit scan proof to backend — marks payment as pending verification
-      await api.post(`/payments/scan-proof`, {
+      await api.post('/payments/scan-proof', {
         bookingId: String(booking._id),
         scanImage: scanPreview,
         amount,
@@ -78,7 +80,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
   const METHODS = [
     { key: 'khalti', label: 'Khalti',    sub: 'Digital wallet & cards',   bg: 'bg-purple-600', border: 'border-purple-200 hover:border-purple-500 hover:bg-purple-50', icon: 'K' },
     { key: 'esewa',  label: 'eSewa',     sub: "Nepal's leading e-wallet",  bg: 'bg-green-600',  border: 'border-green-200 hover:border-green-500 hover:bg-green-50',   icon: 'e' },
-    { key: 'scan',   label: 'Scan / QR', sub: 'Upload payment screenshot', bg: 'bg-blue-600',   border: 'border-blue-200 hover:border-blue-500 hover:bg-blue-50',     icon: '📷' },
+    { key: 'scan',   label: 'Manual Pay',sub: 'Pay via eSewa/Khalti app',  bg: 'bg-blue-600',   border: 'border-blue-200 hover:border-blue-500 hover:bg-blue-50',     icon: 'P' },
   ];
 
   return (
@@ -92,6 +94,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
         <div className="bg-stone-50 rounded-xl p-4 mb-5">
           <p className="text-sm text-stone-600">Session with <span className="font-semibold">{booking.expertId?.name}</span></p>
           <p className="text-2xl font-bold text-stone-900 mt-1">NPR {amount}</p>
+          <p className="text-xs text-stone-400 mt-0.5">Fixed session price</p>
         </div>
 
         {error && (
@@ -106,69 +109,59 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
           </div>
         ) : activeMethod === 'scan' ? (
           <div className="space-y-4">
-            {booking.expertId?.paymentQr ? (
-              <>
-                <p className="text-sm text-stone-600 text-center font-medium">Scan the QR code below to pay</p>
-                <div className="flex justify-center">
-                  <img
-                    src={booking.expertId.paymentQr}
-                    alt="Payment QR"
-                    className="max-h-52 rounded-2xl border border-stone-200 shadow-md object-contain"
-                  />
-                </div>
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
-                  <p className="text-sm font-semibold text-blue-800">Amount: NPR {amount}</p>
-                  <p className="text-xs text-blue-600 mt-0.5">Pay to: <span className="font-medium">{booking.expertId?.name}</span></p>
-                </div>
-                <p className="text-xs text-stone-400 text-center">After paying, upload your payment screenshot below as proof.</p>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-3xl mb-2">📵</p>
-                <p className="text-sm text-stone-500">This expert hasn't set up a QR code yet.</p>
-                <p className="text-xs text-stone-400 mt-1">Please use Khalti or eSewa instead.</p>
-              </div>
-            )}
+            {/* Fixed amount */}
+            <div className="bg-accent-50 border border-accent-200 rounded-xl p-4 text-center">
+              <p className="text-xs text-stone-500 mb-1">Amount to pay</p>
+              <p className="text-3xl font-bold text-accent-800">NPR {amount}</p>
+              <p className="text-sm text-stone-600 mt-1">Pay to: <span className="font-bold text-stone-900">{payTo}</span></p>
+            </div>
 
-            {/* Upload payment proof */}
-            {booking.expertId?.paymentQr && (
-              <>
-                <p className="text-sm font-medium text-stone-700 text-center">Upload your payment screenshot</p>
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-                    scanPreview ? 'border-blue-400 bg-blue-50' : 'border-stone-200 hover:border-blue-300'
-                  }`}
-                >
-                  {scanPreview ? (
-                    <img src={scanPreview} alt="Payment proof" className="max-h-36 mx-auto rounded-lg object-contain" />
-                  ) : (
-                    <div>
-                      <p className="text-2xl mb-1">📷</p>
-                      <p className="text-sm text-stone-500">Click to upload screenshot</p>
-                    </div>
-                  )}
+            {/* Step-by-step instructions */}
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-1.5">
+              <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">How to pay:</p>
+              <p className="text-xs text-stone-600">1. Open your <span className="font-semibold">eSewa</span> or <span className="font-semibold">Khalti</span> app</p>
+              <p className="text-xs text-stone-600">2. Tap <span className="font-semibold">Send Money</span></p>
+              <p className="text-xs text-stone-600">3. Enter ID: <span className="font-bold text-stone-900">{payTo}</span></p>
+              <p className="text-xs text-stone-600">4. Enter amount: <span className="font-bold text-accent-700">NPR {amount}</span></p>
+              <p className="text-xs text-stone-600">5. Complete payment and take a screenshot</p>
+            </div>
+
+            {/* Upload proof */}
+            <div
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
+                scanPreview ? 'border-blue-400 bg-blue-50' : 'border-stone-200 hover:border-blue-300'
+              }`}
+            >
+              {scanPreview ? (
+                <img src={scanPreview} alt="Payment proof" className="max-h-36 mx-auto rounded-lg object-contain" />
+              ) : (
+                <div>
+                  <p className="text-2xl mb-1">📷</p>
+                  <p className="text-sm text-stone-500">Upload payment screenshot</p>
                 </div>
-                <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleScanUpload} className="hidden" />
-              </>
-            )}
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleScanUpload} className="hidden" />
+
+            {/* Confirmation checkbox */}
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 flex-shrink-0" />
+              <span className="text-xs text-stone-600">
+                I confirm I have paid <span className="font-bold text-stone-900">NPR {amount}</span> to <span className="font-semibold">{payTo}</span>
+              </span>
+            </label>
 
             <div className="flex gap-3">
-              <button
-                onClick={() => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); }}
-                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50"
-              >
+              <button onClick={() => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); setConfirmed(false); }}
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">
                 ← Back
               </button>
-              {booking.expertId?.paymentQr && (
-                <button
-                  onClick={handleScanSubmit}
-                  disabled={!scanPreview || scanSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {scanSubmitting ? 'Submitting...' : 'Submit Proof'}
-                </button>
-              )}
+              <button onClick={handleScanSubmit} disabled={!scanPreview || !confirmed || scanSubmitting}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                {scanSubmitting ? 'Submitting...' : 'Submit Proof'}
+              </button>
             </div>
           </div>
         ) : (
@@ -176,8 +169,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
             <p className="text-sm text-stone-500 mb-4 text-center">Choose your payment method</p>
             <div className="space-y-3">
               {METHODS.map(m => (
-                <button
-                  key={m.key}
+                <button key={m.key}
                   onClick={() => {
                     if (m.key === 'khalti') handleKhalti();
                     else if (m.key === 'esewa') handleEsewa();
@@ -201,7 +193,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
         )}
 
         <p className="text-center text-xs text-stone-400 mt-4">
-          🔒 Payments are securely processed and verified server-side
+          Payments are securely processed and verified server-side
         </p>
       </div>
     </div>

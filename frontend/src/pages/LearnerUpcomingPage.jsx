@@ -3,19 +3,24 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import bookingService from '../services/bookingService';
+import PaymentModal from '../components/PaymentModal';
 
 const LearnerUpcomingPage = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [payingBooking, setPayingBooking] = useState(null);
 
-  useEffect(() => {
+  const fetchBookings = () => {
     bookingService.getBookings()
       .then(data => setBookings(data.filter(b => b.status === 'confirmed')))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchBookings(); }, []);
 
   return (
+    <>
     <div className="min-h-screen bg-stone-50">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 pt-24 pb-12">
@@ -70,10 +75,21 @@ const LearnerUpcomingPage = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-green-50 text-green-700 border border-green-200 text-xs font-semibold px-2.5 py-1 rounded-full">Confirmed</span>
-                    <Link to={`/session/${String(b._id)}`}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors">
-                      Join →
-                    </Link>
+                    {b.payment?.status === 'paid' ? (
+                      <Link to={`/session/${String(b._id)}`}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors">
+                        Join →
+                      </Link>
+                    ) : b.payment?.status === 'pending' ? (
+                      <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-200">
+                        ⏳ Verifying Payment
+                      </span>
+                    ) : (
+                      <button onClick={() => setPayingBooking(b)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-accent-600 text-white hover:bg-accent-700 transition-colors animate-pulse">
+                        💳 Pay to Join
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -82,6 +98,14 @@ const LearnerUpcomingPage = () => {
         )}
       </div>
     </div>
+    {payingBooking && (
+      <PaymentModal
+        booking={payingBooking}
+        onClose={() => setPayingBooking(null)}
+        onSuccess={() => { setPayingBooking(null); fetchBookings(); }}
+      />
+    )}
+  </>
   );
 };
 

@@ -108,7 +108,12 @@ const userSchema = new mongoose.Schema({
   }],
   paymentQr: {
     type: String,
-    default: ''   // base64 QR/scan image uploaded by expert
+    default: ''
+  },
+  paymentName: {
+    type: String,
+    default: '',
+    trim: true   // expert's eSewa ID / Khalti name shown to learner
   },
   passwordHistory: [{
     changedAt: { type: Date, default: Date.now }

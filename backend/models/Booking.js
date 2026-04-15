@@ -41,6 +41,10 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  sessionPrice: {
+    type: Number,
+    default: 0   // locked price at booking time from expert.hourlyRate
+  },
   rescheduleHistory: [{
     previousDate: Date,
     previousStartTime: String,

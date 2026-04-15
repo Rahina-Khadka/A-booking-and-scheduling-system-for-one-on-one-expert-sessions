@@ -20,13 +20,16 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
   const expert = booking.expertId;
   const user = booking.userId;
 
-  const canJoinSession = booking.status === 'confirmed';
-
   const isPaid = booking.payment?.status === 'paid';
-  const isPaymentPending = booking.payment?.status === 'pending'; // scan proof submitted, awaiting admin
+  const isPaymentPending = booking.payment?.status === 'pending';
 
-  // Pay Now: only after session is completed and not yet paid/verifying
-  const mustPay = !isExpert && booking.status === 'completed' && !isPaid && !isPaymentPending;
+  const canJoinSession = booking.status === 'confirmed' && (isExpert || isPaid);
+
+  // Pay Now for confirmed+unpaid OR completed+unpaid
+  const mustPay = !isExpert && (
+    (booking.status === 'confirmed' && !isPaid && !isPaymentPending) ||
+    (booking.status === 'completed' && !isPaid && !isPaymentPending)
+  );
 
   // Review: only after completed AND payment confirmed paid
   const canReview = !isExpert && booking.status === 'completed' && isPaid;
@@ -81,7 +84,16 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
         </div>
 
         {/* Payment required banner */}
-        {mustPay && (
+        {mustPay && booking.status === 'confirmed' && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+            <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-700">Payment Required to Join</p>
+              <p className="text-xs text-amber-600 mt-0.5">Your session is confirmed. Please pay to unlock the Join button.</p>
+            </div>
+          </div>
+        )}
+        {mustPay && booking.status === 'completed' && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
             <span className="text-red-500 text-lg flex-shrink-0">⚠️</span>
             <div>

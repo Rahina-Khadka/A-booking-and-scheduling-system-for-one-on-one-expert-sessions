@@ -59,7 +59,7 @@ const ExpertDashboardPage = () => {
   const [activeModal, setActiveModal] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = useRef(null);
-  const [form, setForm] = useState({ name:'', phone:'', bio:'', expertise:[], profilePicture:'', hourlyRate:0, isOnline:false, paymentQr:'' });
+  const [form, setForm] = useState({ name:'', phone:'', bio:'', expertise:[], profilePicture:'', hourlyRate:0, isOnline:false, paymentQr:'', paymentName:'' });
   const [qrPreview, setQrPreview] = useState(null);
   const qrInputRef = useRef(null);
   const [availability, setAvailability] = useState(DAYS.map(day => ({ day, enabled: false, startTime: '09:00', endTime: '10:00' })));
@@ -74,7 +74,7 @@ const ExpertDashboardPage = () => {
       const p = await userService.getProfile();
       const [b, r] = await Promise.all([bookingService.getBookings(), reviewService.getExpertReviews(p._id).catch(() => [])]);
       setProfile(p); setBookings(b); setReviews(r);
-      setForm({ name: p.name||'', phone: p.phone||'', bio: p.bio||'', expertise: p.expertise||[], profilePicture: p.profilePicture||'', hourlyRate: p.hourlyRate||0, isOnline: p.isOnline||false, paymentQr: p.paymentQr||'' });
+      setForm({ name: p.name||'', phone: p.phone||'', bio: p.bio||'', expertise: p.expertise||[], profilePicture: p.profilePicture||'', hourlyRate: p.hourlyRate||0, isOnline: p.isOnline||false, paymentQr: p.paymentQr||'', paymentName: p.paymentName||'' });
       setAvatarPreview(p.profilePicture || null);
       setQrPreview(p.paymentQr || null);
       if (p.availability?.length > 0) {
@@ -428,6 +428,15 @@ const ExpertDashboardPage = () => {
                   <input type="number" min="0" value={form.hourlyRate}
                     onChange={e => setForm(p => ({ ...p, hourlyRate: Number(e.target.value) }))}
                     placeholder="e.g. 500"
+                    className="w-full px-4 py-2.5 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 outline-none text-sm" />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Payment Name / ID</label>
+                  <p className="text-xs text-stone-400 mb-1.5">Your eSewa ID or Khalti name shown to learners when they pay.</p>
+                  <input type="text" value={form.paymentName}
+                    onChange={e => setForm(p => ({ ...p, paymentName: e.target.value }))}
+                    placeholder="e.g. 9800000000 or Your Name"
                     className="w-full px-4 py-2.5 border border-stone-200 rounded-xl focus:ring-2 focus:ring-accent-500 outline-none text-sm" />
                 </div>
 
