@@ -127,18 +127,21 @@ const login = async (req, res) => {
  */
 const googleCallback = async (req, res) => {
   try {
+    const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/[\r\n]+/g, '');
+
     if (!req.user) {
-      return res.redirect(`${process.env.CLIENT_URL}/login?error=unauthorized`);
+      return res.redirect(`${clientUrl}/login?error=unauthorized`);
     }
 
     const token = generateToken(req.user._id);
     // Pass role so the success page can redirect correctly
     res.redirect(
-      `${process.env.CLIENT_URL}/auth/google/success?token=${token}&role=${req.user.role}`
+      `${clientUrl}/auth/google/success?token=${token}&role=${req.user.role}`
     );
   } catch (error) {
     console.error('Google callback error:', error);
-    res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
+    const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/[\r\n]+/g, '');
+    res.redirect(`${clientUrl}/login?error=auth_failed`);
   }
 };
 

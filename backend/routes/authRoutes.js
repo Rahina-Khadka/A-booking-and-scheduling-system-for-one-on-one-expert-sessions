@@ -23,12 +23,13 @@ router.get(
   '/google/callback',
   (req, res, next) => {
     passport.authenticate('google', { session: false }, (err, user, info) => {
+      const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/[\r\n]+/g, '');
       if (err) {
         console.error('Google OAuth error:', err.message);
-        return res.redirect(`${process.env.CLIENT_URL}/login?error=auth_failed`);
+        return res.redirect(`${clientUrl}/login?error=auth_failed`);
       }
       if (!user) {
-        return res.redirect(`${process.env.CLIENT_URL}/login?error=unauthorized`);
+        return res.redirect(`${clientUrl}/login?error=unauthorized`);
       }
       req.user = user;
       next();
