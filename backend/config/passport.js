@@ -19,9 +19,9 @@ const adminEmails = rawEmails
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID || 'dummy',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'dummy',
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback',
+      clientID: (process.env.GOOGLE_CLIENT_ID || 'dummy').trim(),
+      clientSecret: (process.env.GOOGLE_CLIENT_SECRET || 'dummy').trim(),
+      callbackURL: (process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback').trim(),
       scope: ['profile', 'email']
     },
     async (accessToken, refreshToken, profile, done) => {
