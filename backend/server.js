@@ -43,12 +43,15 @@ const app = express();
 const server = http.createServer(app);
 
 // Shared CORS origin checker
+const CLIENT_URL = (process.env.CLIENT_URL || '').trim().replace(/[\r\n]+/g, '');
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
   if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
-  if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
+  if (CLIENT_URL && origin === CLIENT_URL) return true;
   // Allow any Vercel preview/production deployment for this project
   if (process.env.VERCEL_PROJECT && origin.includes(process.env.VERCEL_PROJECT)) return true;
+  // Allow any vercel.app origin for this project name
+  if (origin.includes('a-booking-and-scheduling-system-for') && origin.includes('vercel.app')) return true;
   return false;
 };
 
