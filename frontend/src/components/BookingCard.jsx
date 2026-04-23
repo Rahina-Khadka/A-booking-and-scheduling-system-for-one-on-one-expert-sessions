@@ -25,10 +25,11 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
 
   const canJoinSession = booking.status === 'confirmed' && (isExpert || isPaid);
 
-  // Pay Now for confirmed+unpaid OR completed+unpaid
-  const mustPay = !isExpert && (
-    (booking.status === 'confirmed' && !isPaid && !isPaymentPending) ||
-    (booking.status === 'completed' && !isPaid && !isPaymentPending)
+  // Pay Now for pending+unpaid, confirmed+unpaid
+  const mustPay = !isExpert && !isPaid && !isPaymentPending && (
+    booking.status === 'pending' ||
+    booking.status === 'confirmed' ||
+    booking.status === 'completed'
   );
 
   // Review: only after completed AND payment confirmed paid
@@ -84,6 +85,15 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
         </div>
 
         {/* Payment required banner */}
+        {mustPay && booking.status === 'pending' && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+            <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-700">Payment Required</p>
+              <p className="text-xs text-amber-600 mt-0.5">Please pay to confirm your booking. The expert will be notified after payment.</p>
+            </div>
+          </div>
+        )}
         {mustPay && booking.status === 'confirmed' && (
           <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
             <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
