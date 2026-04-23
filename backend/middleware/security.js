@@ -28,11 +28,16 @@ const sanitizeMiddleware = mongoSanitize({
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 50,
   message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => process.env.NODE_ENV === 'test'
+  skip: (req) => {
+    // Skip rate limiting for tests and Google OAuth redirects
+    if (process.env.NODE_ENV === 'test') return true;
+    if (req.path.startsWith('/google')) return true;
+    return false;
+  }
 });
 
 const apiLimiter = rateLimit({
