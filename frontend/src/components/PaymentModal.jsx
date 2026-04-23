@@ -16,6 +16,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
   const amount = booking.sessionPrice || booking.expertId?.hourlyRate || 100;
   const payTo = booking.expertId?.paymentName || booking.expertId?.name || 'Expert';
+  const expertQr = booking.expertId?.paymentQr || null;
 
   const handleKhalti = async () => {
     setLoading(true); setError('');
@@ -116,15 +117,23 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
               <p className="text-sm text-stone-600 mt-1">Pay to: <span className="font-bold text-stone-900">{payTo}</span></p>
             </div>
 
-            {/* Step-by-step instructions */}
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-1.5">
-              <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">How to pay:</p>
-              <p className="text-xs text-stone-600">1. Open your <span className="font-semibold">eSewa</span> or <span className="font-semibold">Khalti</span> app</p>
-              <p className="text-xs text-stone-600">2. Tap <span className="font-semibold">Send Money</span></p>
-              <p className="text-xs text-stone-600">3. Enter ID: <span className="font-bold text-stone-900">{payTo}</span></p>
-              <p className="text-xs text-stone-600">4. Enter amount: <span className="font-bold text-accent-700">NPR {amount}</span></p>
-              <p className="text-xs text-stone-600">5. Complete payment and take a screenshot</p>
-            </div>
+            {/* Expert QR Code */}
+            {expertQr ? (
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+                <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">Scan to Pay</p>
+                <img src={expertQr} alt="Expert Payment QR" className="w-40 h-40 mx-auto rounded-lg object-contain border border-stone-200" />
+                <p className="text-xs text-stone-500 mt-2">Scan this QR with your eSewa or Khalti app</p>
+              </div>
+            ) : (
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-1.5">
+                <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">How to pay:</p>
+                <p className="text-xs text-stone-600">1. Open your <span className="font-semibold">eSewa</span> or <span className="font-semibold">Khalti</span> app</p>
+                <p className="text-xs text-stone-600">2. Tap <span className="font-semibold">Send Money</span></p>
+                <p className="text-xs text-stone-600">3. Enter ID: <span className="font-bold text-stone-900">{payTo}</span></p>
+                <p className="text-xs text-stone-600">4. Enter amount: <span className="font-bold text-accent-700">NPR {amount}</span></p>
+                <p className="text-xs text-stone-600">5. Complete payment and take a screenshot</p>
+              </div>
+            )}
 
             {/* Upload proof */}
             <div
