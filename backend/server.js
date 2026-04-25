@@ -211,6 +211,11 @@ io.on('connection', (socket) => {
     socket.to(bookingId).emit('webrtc-ice-candidate', { candidate, userId: socket.userId });
   });
 
+  // End session — notify all participants
+  socket.on('session-end', ({ bookingId }) => {
+    socket.to(bookingId).emit('session-ended');
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     if (socket.bookingId) {

@@ -160,10 +160,19 @@ const SessionRoomPage = () => {
           addSystemMessage('Other participant joined the session');
           showToast('Participant joined 🎉');
         });
+        socketService.socket.on('expert-waiting', () => {
+          showToast('Your expert has joined and is waiting for you! 🎯');
+          addSystemMessage('Expert has joined the session room');
+        });
         socketService.socket.on('user-left', () => {
           setIsOtherUserOnline(false);
           addSystemMessage('Other participant left the session');
           showToast('Participant left the session');
+        });
+        socketService.socket.on('session-ended', () => {
+          addSystemMessage('Session ended by the other participant');
+          showToast('Session ended');
+          setTimeout(() => { cleanup(); navigate('/bookings'); }, 2000);
         });
         socketService.socket.on('typing-start', () => {
           setIsTyping(true);
@@ -267,7 +276,11 @@ const SessionRoomPage = () => {
                 className="flex-1 py-2.5 rounded-xl bg-gray-700 text-white text-sm font-medium hover:bg-gray-600 transition-colors">
                 Cancel
               </button>
-              <button onClick={() => { cleanup(); navigate('/bookings'); }}
+              <button onClick={() => { 
+                socketService.socket?.emit('session-end', { bookingId });
+                cleanup(); 
+                navigate('/bookings'); 
+              }}
                 className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
                 End Session
               </button>
