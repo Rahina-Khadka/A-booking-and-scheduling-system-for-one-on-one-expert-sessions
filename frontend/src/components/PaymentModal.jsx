@@ -86,16 +86,20 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-stone-900">Pay for Session</h2>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white rounded-t-2xl px-5 pt-5 pb-3 border-b border-stone-100 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-stone-900">Pay for Session</h2>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-2xl leading-none">&times;</button>
         </div>
 
-        <div className="bg-stone-50 rounded-xl p-4 mb-5">
-          <p className="text-sm text-stone-600">Session with <span className="font-semibold">{booking.expertId?.name}</span></p>
-          <p className="text-2xl font-bold text-stone-900 mt-1">NPR {amount}</p>
-          <p className="text-xs text-stone-400 mt-0.5">Fixed session price</p>
+        <div className="p-5 space-y-3">
+
+        <div className="bg-stone-50 rounded-xl px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-stone-500">Session with <span className="font-semibold text-stone-700">{booking.expertId?.name}</span></p>
+            <p className="text-xl font-bold text-stone-900">NPR {amount}</p>
+          </div>
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">Fixed price</span>
         </div>
 
         {error && (
@@ -109,60 +113,52 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
             <p className="text-xs text-stone-400 mt-1">Admin will verify and confirm shortly.</p>
           </div>
         ) : activeMethod === 'scan' ? (
-          <div className="space-y-4">
-            {/* Fixed amount */}
-            <div className="bg-accent-50 border border-accent-200 rounded-xl p-4 text-center">
-              <p className="text-xs text-stone-500 mb-1">Amount to pay</p>
-              <p className="text-3xl font-bold text-accent-800">NPR {amount}</p>
-              <p className="text-sm text-stone-600 mt-1">Pay to: <span className="font-bold text-stone-900">{payTo}</span></p>
-            </div>
-
-            {/* Expert QR Code */}
+          <div className="space-y-3">
+            {/* Amount + QR side by side if QR exists */}
             {expertQr ? (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
-                <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">Scan to Pay</p>
-                <img src={expertQr} alt="Expert Payment QR" className="w-40 h-40 mx-auto rounded-lg object-contain border border-stone-200" />
-                <p className="text-xs text-stone-500 mt-2">Scan this QR with your eSewa or Khalti app</p>
+              <div className="flex gap-3 items-center bg-stone-50 border border-stone-200 rounded-xl p-3">
+                <img src={expertQr} alt="Payment QR" className="w-24 h-24 rounded-lg object-contain border border-stone-200 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-stone-500 mb-0.5">Scan & pay</p>
+                  <p className="text-2xl font-bold text-stone-900">NPR {amount}</p>
+                  <p className="text-xs text-stone-600 mt-1">To: <span className="font-semibold">{payTo}</span></p>
+                  <p className="text-xs text-stone-400 mt-1">Use eSewa or Khalti app</p>
+                </div>
               </div>
             ) : (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-1.5">
-                <p className="text-xs font-semibold text-stone-700 uppercase tracking-wide mb-2">How to pay:</p>
-                <p className="text-xs text-stone-600">1. Open your <span className="font-semibold">eSewa</span> or <span className="font-semibold">Khalti</span> app</p>
-                <p className="text-xs text-stone-600">2. Tap <span className="font-semibold">Send Money</span></p>
-                <p className="text-xs text-stone-600">3. Enter ID: <span className="font-bold text-stone-900">{payTo}</span></p>
-                <p className="text-xs text-stone-600">4. Enter amount: <span className="font-bold text-accent-700">NPR {amount}</span></p>
-                <p className="text-xs text-stone-600">5. Complete payment and take a screenshot</p>
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1">
+                <p className="text-xs font-semibold text-stone-700">How to pay:</p>
+                <p className="text-xs text-stone-600">1. Open eSewa or Khalti → Send Money</p>
+                <p className="text-xs text-stone-600">2. ID: <span className="font-bold">{payTo}</span> · Amount: <span className="font-bold text-green-700">NPR {amount}</span></p>
+                <p className="text-xs text-stone-600">3. Take a screenshot</p>
               </div>
             )}
 
             {/* Upload proof */}
-            <div
-              onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
+            <div onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition-colors ${
                 scanPreview ? 'border-blue-400 bg-blue-50' : 'border-stone-200 hover:border-blue-300'
-              }`}
-            >
+              }`}>
               {scanPreview ? (
-                <img src={scanPreview} alt="Payment proof" className="max-h-36 mx-auto rounded-lg object-contain" />
+                <img src={scanPreview} alt="Payment proof" className="max-h-28 mx-auto rounded-lg object-contain" />
               ) : (
                 <div>
-                  <p className="text-2xl mb-1">📷</p>
-                  <p className="text-sm text-stone-500">Upload payment screenshot</p>
+                  <p className="text-xl mb-0.5">📷</p>
+                  <p className="text-xs text-stone-500">Tap to upload payment screenshot</p>
                 </div>
               )}
             </div>
             <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleScanUpload} className="hidden" />
 
             {/* Confirmation checkbox */}
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
-                className="mt-0.5 w-4 h-4 flex-shrink-0" />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="w-4 h-4 flex-shrink-0" />
               <span className="text-xs text-stone-600">
-                I confirm I have paid <span className="font-bold text-stone-900">NPR {amount}</span> to <span className="font-semibold">{payTo}</span>
+                I confirm I paid <span className="font-bold">NPR {amount}</span> to <span className="font-semibold">{payTo}</span>
               </span>
             </label>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button onClick={() => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); setConfirmed(false); }}
                 className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">
                 ← Back
@@ -201,9 +197,10 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
           </>
         )}
 
-        <p className="text-center text-xs text-stone-400 mt-4">
+        <p className="text-center text-xs text-stone-400 pt-1 pb-2">
           Payments are securely processed and verified server-side
         </p>
+        </div>
       </div>
     </div>
   );
