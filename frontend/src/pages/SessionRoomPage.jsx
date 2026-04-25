@@ -159,6 +159,8 @@ const SessionRoomPage = () => {
           setIsOtherUserOnline(true);
           addSystemMessage('Other participant joined the session');
           showToast('Participant joined 🎉');
+          // Auto-initiate WebRTC offer when other participant joins
+          setTimeout(() => createOffer(), 500);
         });
         socketService.socket.on('expert-waiting', () => {
           showToast('Your expert has joined and is waiting for you! 🎯');
