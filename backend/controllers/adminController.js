@@ -143,6 +143,10 @@ const updateUserRole = async (req, res) => {
     }
 
     user.role = role;
+    // Auto-approve verification when role is set to expert
+    if (role === 'expert') {
+      user.verificationStatus = 'approved';
+    }
     await user.save();
 
     res.json({ message: 'User role updated successfully', user });

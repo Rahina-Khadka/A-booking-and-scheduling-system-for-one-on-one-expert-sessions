@@ -171,16 +171,21 @@ const ExpertDashboardPage = () => {
       <SessionReminderBanner />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
 
-        {profile?.verificationStatus !== 'approved' && (
-          <div className={`mb-6 rounded-2xl border px-5 py-4 flex items-start gap-3 ${profile?.verificationStatus === 'rejected' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
-            <span className="text-2xl">{profile?.verificationStatus === 'rejected' ? '❌' : '⏳'}</span>
+        {profile?.verificationStatus !== 'approved' && profile?.verificationStatus !== 'rejected' && profile?.role !== 'expert' && (
+          <div className="mb-6 rounded-2xl border px-5 py-4 flex items-start gap-3 bg-yellow-50 border-yellow-200">
+            <span className="text-2xl">⏳</span>
             <div>
-              <p className={`font-semibold text-sm ${profile?.verificationStatus === 'rejected' ? 'text-red-700' : 'text-yellow-700'}`}>
-                {profile?.verificationStatus === 'rejected' ? 'Verification Rejected' : 'Pending Verification'}
-              </p>
-              <p className={`text-xs mt-0.5 ${profile?.verificationStatus === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>
-                {profile?.verificationStatus === 'rejected' ? 'Your verification was rejected. Please contact support.' : 'Your account is under review. You will be visible once approved.'}
-              </p>
+              <p className="font-semibold text-sm text-yellow-700">Pending Verification</p>
+              <p className="text-xs mt-0.5 text-yellow-600">Your account is under review. You will be visible once approved.</p>
+            </div>
+          </div>
+        )}
+        {profile?.verificationStatus === 'rejected' && (
+          <div className="mb-6 rounded-2xl border px-5 py-4 flex items-start gap-3 bg-red-50 border-red-200">
+            <span className="text-2xl">❌</span>
+            <div>
+              <p className="font-semibold text-sm text-red-700">Verification Rejected</p>
+              <p className="text-xs mt-0.5 text-red-600">Your verification was rejected. Please contact support.</p>
             </div>
           </div>
         )}
