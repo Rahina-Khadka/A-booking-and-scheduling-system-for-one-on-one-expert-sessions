@@ -11,7 +11,7 @@ import invoiceService from '../services/invoiceService';
  * Booking Card Component
  * Displays booking information with actions
  */
-const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubmitted, onRescheduled }) => {
+const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubmitted, onRescheduled, onPaymentSuccess }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -222,7 +222,11 @@ const BookingCard = ({ booking, onStatusChange, onCancel, isExpert, onReviewSubm
         <PaymentModal
           booking={booking}
           onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            if (onPaymentSuccess) onPaymentSuccess();
+            else if (onRescheduled) onRescheduled();
+          }}
         />
       )}
 
