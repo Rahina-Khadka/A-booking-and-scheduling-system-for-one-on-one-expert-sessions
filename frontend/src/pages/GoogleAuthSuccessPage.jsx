@@ -36,9 +36,9 @@ const GoogleAuthSuccessPage = () => {
 
         const userData = await response.json();
 
-        // Persist credentials
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify({ ...userData, token }));
+        // Persist credentials in sessionStorage (tab-isolated)
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('user', JSON.stringify({ ...userData, token }));
         sessionStorage.setItem('session_alive', '1');
 
         const destination = ROLE_REDIRECTS[userData.role] || '/dashboard';

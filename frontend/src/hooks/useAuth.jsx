@@ -8,13 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const isAlive = sessionStorage.getItem('session_alive');
-    if (!isAlive) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setLoading(false);
-      return;
-    }
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
     setLoading(false);
