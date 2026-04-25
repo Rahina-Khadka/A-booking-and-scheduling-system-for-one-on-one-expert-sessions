@@ -14,6 +14,9 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
   const [confirmed, setConfirmed] = useState(false);
   const fileRef = useRef(null);
 
+  // Reset to method selection every time modal opens
+  const resetScan = () => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); setConfirmed(false); setScanSuccess(false); };
+
   const amount = booking.sessionPrice || booking.expertId?.hourlyRate || 100;
   const payTo = booking.expertId?.paymentName || booking.expertId?.name || 'Expert';
   const expertQr = booking.expertId?.paymentQr || null;
@@ -159,7 +162,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
             </label>
 
             <div className="flex gap-2">
-              <button onClick={() => { setActiveMethod(null); setScanFile(null); setScanPreview(null); setError(''); setConfirmed(false); }}
+              <button onClick={resetScan}
                 className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">
                 ← Back
               </button>
