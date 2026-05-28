@@ -93,6 +93,14 @@ const useWebRTC = (bookingId) => {
   };
 
   const handleOffer = async (offer) => {
+    // If already connected, this is a renegotiation offer — don't recreate peer connection
+    if (peerConnection.current && peerConnection.current.connectionState === 'connected') {
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      socketService.sendAnswer(bookingId, answer);
+      return;
+    }
     const pc = await createPeerConnection();
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
@@ -137,11 +145,28 @@ const useWebRTC = (bookingId) => {
       const vt = vs.getVideoTracks()[0];
       localStreamRef.current?.addTrack(vt);
       setLocalStream(localStreamRef.current);
-      if (peerConnection.current) peerConnection.current.addTrack(vt, localStreamRef.current);
+      if (peerConnection.current) {
+        peerConnection.current.addTrack(vt, localStreamRef.current);
+        // Renegotiate to send new video track to remote peer
+        const offer = await peerConnection.current.createOffer();
+        await peerConnection.current.setLocalDescription(offer);
+        socketService.sendOffer(bookingId, offer);
+      }
       setIsVideoEnabled(true);
     } else {
       const vt = localStreamRef.current?.getVideoTracks()[0];
-      if (vt) { vt.stop(); localStreamRef.current?.removeTrack(vt); setLocalStream(localStreamRef.current); setIsVideoEnabled(false); }
+      if (vt) {
+        vt.stop();
+        localStreamRef.current?.removeTrack(vt);
+        setLocalStream(localStreamRef.current);
+        // Renegotiate to remove video track from remote peer
+        if (peerConnection.current) {
+          const offer = await peerConnection.current.createOffer();
+          await peerConnection.current.setLocalDescription(offer);
+          socketService.sendOffer(bookingId, offer);
+        }
+        setIsVideoEnabled(false);
+      }
     }
   };
 
