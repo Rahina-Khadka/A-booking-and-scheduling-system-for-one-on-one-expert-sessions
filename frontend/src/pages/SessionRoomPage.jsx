@@ -193,6 +193,26 @@ const SessionRoomPage = () => {
       const prev = await messageService.getMessages(bookingId);
       setMessages(prev);
       await initializeMedia(true, false);
+
+      // If other participant is already in the room (we joined second),
+      // send an offer after a short delay to establish WebRTC
+      socketService.socket.once('user-joined', () => {}); // clear any pending
+      setTimeout(async () => {
+        // Check if other user is online by listening for their presence
+        // We send a ping and if we get user-joined back, they're there
+        // Actually: after joining, server tells others we joined via user-joined
+        // If we joined second, the first person already got user-joined and sent offer
+        // But we need to also send offer in case they didn't
+        // Solution: both sides send offer, but only the one with lower userId wins (polite negotiation)
+        const myId = String(user._id);
+        const otherId = String(current.expertId?._id || current.userId?._id || '');
+        const iAmPolite = myId > otherId; // higher ID is polite (waits)
+        if (!iAmPolite) {
+          // I am impolite — I initiate the offer
+          createOffer();
+        }
+      }, 1500);
+
       setLoading(false);
     } catch {
       setError('Failed to initialize session');
