@@ -1,27 +1,33 @@
 ﻿import { useState, useRef } from 'react';
 import socketService from '../services/socketService';
+import api from '../services/api';
 
-const ICE_SERVERS = {
+const FALLBACK_ICE = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    {
-      urls: 'turn:relay1.expressturn.com:3478',
-      username: 'efVPNXILOGZDSV28WZ',
-      credential: 'KBGaGTxBEFHHBqAp'
-    },
+    { urls: 'stun:stun3.l.google.com:19302' },
     {
       urls: [
         'turn:openrelay.metered.ca:80',
         'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turn:openrelay.metered.ca:80?transport=tcp',
       ],
       username: 'openrelayproject',
-      credential: 'openrelayproject'
-    }
+      credential: 'openrelayproject',
+    },
   ],
   iceCandidatePoolSize: 10,
+};
+
+const fetchIceServers = async () => {
+  try {
+    const res = await api.get('/auth/turn-credentials');
+    if (res.data?.iceServers) return { iceServers: res.data.iceServers, iceCandidatePoolSize: 10 };
+  } catch {}
+  return FALLBACK_ICE;
 };
 
 const useWebRTC = (bookingId) => {
@@ -32,39 +38,62 @@ const useWebRTC = (bookingId) => {
   const [isConnected, setIsConnected] = useState(false);
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
+  const iceConfigRef = useRef(null);
 
   const initializeMedia = async (audio = true, video = false) => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio, video: video ? { width: 1280, height: 720 } : false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio,
+      video: video ? { width: 1280, height: 720 } : false,
+    });
     localStreamRef.current = stream;
     setLocalStream(stream);
     setIsAudioEnabled(audio);
     setIsVideoEnabled(video);
+    // Pre-fetch ICE servers while media initializes
+    iceConfigRef.current = await fetchIceServers();
     return stream;
   };
 
-  const createPeerConnection = () => {
+  const createPeerConnection = async () => {
     if (peerConnection.current) peerConnection.current.close();
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
-    pc.ontrack = (e) => { setRemoteStream(e.streams[0]); setIsConnected(true); };
-    pc.onicecandidate = (e) => { if (e.candidate) socketService.sendIceCandidate(bookingId, e.candidate); };
+    const iceConfig = iceConfigRef.current || await fetchIceServers();
+    const pc = new RTCPeerConnection(iceConfig);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
+    }
+    pc.ontrack = (e) => {
+      setRemoteStream(e.streams[0]);
+      setIsConnected(true);
+    };
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socketService.sendIceCandidate(bookingId, e.candidate);
+    };
     pc.onconnectionstatechange = () => {
-      if (['disconnected','failed'].includes(pc.connectionState)) setIsConnected(false);
+      if (['disconnected', 'failed'].includes(pc.connectionState)) setIsConnected(false);
       if (pc.connectionState === 'connected') setIsConnected(true);
+    };
+    pc.onicegatheringstatechange = () => {
+      console.log('[WebRTC] ICE gathering:', pc.iceGatheringState);
+    };
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setIsConnected(true);
+      }
     };
     peerConnection.current = pc;
     return pc;
   };
 
   const createOffer = async () => {
-    const pc = createPeerConnection();
-    const offer = await pc.createOffer();
+    const pc = await createPeerConnection();
+    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
     await pc.setLocalDescription(offer);
     socketService.sendOffer(bookingId, offer);
   };
 
   const handleOffer = async (offer) => {
-    const pc = createPeerConnection();
+    const pc = await createPeerConnection();
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
@@ -72,11 +101,19 @@ const useWebRTC = (bookingId) => {
   };
 
   const handleAnswer = async (answer) => {
-    if (peerConnection.current) await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+    if (peerConnection.current) {
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+    }
   };
 
   const handleIceCandidate = async (candidate) => {
-    if (peerConnection.current) await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+    if (peerConnection.current) {
+      try {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn('[WebRTC] ICE candidate error:', e.message);
+      }
+    }
   };
 
   const registerSignalingListeners = () => {
@@ -116,7 +153,11 @@ const useWebRTC = (bookingId) => {
     setLocalStream(null); setRemoteStream(null); setIsConnected(false);
   };
 
-  return { localStream, remoteStream, isAudioEnabled, isVideoEnabled, isConnected, initializeMedia, createOffer, toggleAudio, toggleVideo, cleanup, registerSignalingListeners };
+  return {
+    localStream, remoteStream, isAudioEnabled, isVideoEnabled, isConnected,
+    initializeMedia, createOffer, toggleAudio, toggleVideo, cleanup,
+    registerSignalingListeners, peerConnection,
+  };
 };
 
 export default useWebRTC;

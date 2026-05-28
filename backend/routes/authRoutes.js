@@ -42,4 +42,25 @@ router.get(
 // Get current user profile (used by GoogleAuthSuccessPage)
 router.get('/google/current', protect, getCurrentGoogleUser);
 
+// TURN server credentials for WebRTC
+router.get('/turn-credentials', protect, (req, res) => {
+  res.json({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp',
+          'turn:openrelay.metered.ca:80?transport=tcp',
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+    ]
+  });
+});
+
 module.exports = router;
