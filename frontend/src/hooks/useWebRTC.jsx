@@ -143,10 +143,13 @@ const useWebRTC = (bookingId) => {
     if (!isVideoEnabled) {
       const vs = await navigator.mediaDevices.getUserMedia({ video: true });
       const vt = vs.getVideoTracks()[0];
-      localStreamRef.current?.addTrack(vt);
-      setLocalStream(localStreamRef.current);
+      // Create new stream with existing audio + new video track
+      const existingAudio = localStreamRef.current?.getAudioTracks() || [];
+      const newStream = new MediaStream([...existingAudio, vt]);
+      localStreamRef.current = newStream;
+      setLocalStream(newStream); // new reference triggers useEffect
       if (peerConnection.current) {
-        peerConnection.current.addTrack(vt, localStreamRef.current);
+        peerConnection.current.addTrack(vt, newStream);
         // Renegotiate to send new video track to remote peer
         const offer = await peerConnection.current.createOffer();
         await peerConnection.current.setLocalDescription(offer);
@@ -157,8 +160,10 @@ const useWebRTC = (bookingId) => {
       const vt = localStreamRef.current?.getVideoTracks()[0];
       if (vt) {
         vt.stop();
-        localStreamRef.current?.removeTrack(vt);
-        setLocalStream(localStreamRef.current);
+        const existingAudio = localStreamRef.current?.getAudioTracks() || [];
+        const newStream = new MediaStream([...existingAudio]);
+        localStreamRef.current = newStream;
+        setLocalStream(newStream); // new reference triggers useEffect
         // Renegotiate to remove video track from remote peer
         if (peerConnection.current) {
           const offer = await peerConnection.current.createOffer();
