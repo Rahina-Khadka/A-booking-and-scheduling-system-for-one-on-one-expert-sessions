@@ -34,6 +34,7 @@ const BookingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [formData, setFormData] = useState({ date: '', startTime: '', endTime: '', topic: '', notes: '' });
 
   useEffect(() => {
@@ -83,16 +84,23 @@ const BookingPage = () => {
 
   const timeError = validateSessionTime(formData.startTime, formData.endTime);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    setError('');
+    setShowConfirm(true);
+  };
+
+  const handleConfirmBooking = async () => {
     setError('');
     setSubmitting(true);
     try {
       await bookingService.createBooking({ expertId, ...formData });
       setSuccess(true);
+      setShowConfirm(false);
       setTimeout(() => navigate('/bookings'), 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create booking');
+      setShowConfirm(false);
     } finally { setSubmitting(false); }
   };
 
@@ -187,6 +195,63 @@ const BookingPage = () => {
           </form>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">📅</span>
+              </div>
+              <h3 className="text-xl font-bold text-stone-900">Confirm Booking</h3>
+              <p className="text-sm text-stone-500 mt-1">Please review your session details</p>
+            </div>
+
+            <div className="bg-stone-50 rounded-xl p-4 space-y-3 mb-5">
+              <div className="flex justify-between text-sm">
+                <span className="text-stone-500">Expert</span>
+                <span className="font-semibold text-stone-900">{expert?.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-stone-500">Date</span>
+                <span className="font-semibold text-stone-900">
+                  {new Date(formData.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-stone-500">Time</span>
+                <span className="font-semibold text-stone-900">{fmt12(formData.startTime)} → {fmt12(formData.endTime)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-stone-500">Duration</span>
+                <span className="font-semibold text-stone-900">{toMin(formData.endTime) - toMin(formData.startTime)} minutes</span>
+              </div>
+              {formData.topic && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-500">Topic</span>
+                  <span className="font-semibold text-stone-900">{formData.topic}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm border-t border-stone-200 pt-3">
+                <span className="text-stone-500">Session Price</span>
+                <span className="font-bold text-green-700">NPR {expert?.hourlyRate || 0}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-sm font-medium hover:bg-stone-50">
+                ← Edit
+              </button>
+              <button onClick={handleConfirmBooking} disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl bg-accent-600 text-white text-sm font-semibold hover:bg-accent-700 disabled:opacity-50">
+                {submitting ? 'Booking...' : '✓ Confirm & Book'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
