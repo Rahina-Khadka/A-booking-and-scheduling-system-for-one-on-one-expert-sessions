@@ -41,14 +41,28 @@ const useWebRTC = (bookingId) => {
   const iceConfigRef = useRef(null);
 
   const initializeMedia = async (audio = true, video = false) => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio,
-      video: video ? { width: 1280, height: 720 } : false,
-    });
+    let stream;
+    try {
+      // Try with enhanced audio constraints first
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: audio ? {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } : false,
+        video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
+      });
+    } catch {
+      // Fallback to basic constraints if enhanced fails
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: audio,
+        video: video,
+      });
+    }
     localStreamRef.current = stream;
     setLocalStream(stream);
-    setIsAudioEnabled(audio);
-    setIsVideoEnabled(video);
+    setIsAudioEnabled(audio ? stream.getAudioTracks().length > 0 : false);
+    setIsVideoEnabled(video ? stream.getVideoTracks().length > 0 : false);
     // Pre-fetch ICE servers while media initializes
     iceConfigRef.current = await fetchIceServers();
     return stream;
@@ -59,7 +73,9 @@ const useWebRTC = (bookingId) => {
     const iceConfig = iceConfigRef.current || await fetchIceServers();
     const pc = new RTCPeerConnection(iceConfig);
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
+      const tracks = localStreamRef.current.getTracks();
+      console.log('[WebRTC] Adding tracks to PC:', tracks.map(t => `${t.kind}:${t.enabled}`));
+      tracks.forEach(t => pc.addTrack(t, localStreamRef.current));
     }
     pc.ontrack = (e) => {
       setRemoteStream(e.streams[0]);
