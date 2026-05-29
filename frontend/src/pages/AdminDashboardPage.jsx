@@ -450,13 +450,87 @@ const AdminDashboardPage = () => {
 
         {/* Payments Tab */}
         {activeTab === 'payments' && (
-          <div>
-            <div className="flex items-center gap-3 mb-5">
-              <h2 className="text-lg font-bold text-stone-900">Scan Payment Verification</h2>
-              <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full">
-                {pendingScanPayments.length} pending
-              </span>
+          <div className="space-y-8">
+
+            {/* ── Income Summary Cards ── */}
+            <div>
+              <h2 className="text-lg font-bold text-stone-900 mb-4">💰 Platform Income Overview</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-2xl border border-green-200 shadow-sm p-5 text-center">
+                  <p className="text-xs text-stone-500 mb-1">Total Platform Income</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    NPR {bookings.filter(b => b.payment?.status === 'paid').reduce((s, b) => s + (b.payment?.amount || 0), 0)}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-1">{bookings.filter(b => b.payment?.status === 'paid').length} paid sessions</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 text-center">
+                  <p className="text-xs text-stone-500 mb-1">Pending Verification</p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    NPR {bookings.filter(b => b.payment?.status === 'pending').reduce((s, b) => s + (b.payment?.amount || 0), 0)}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-1">{bookings.filter(b => b.payment?.status === 'pending').length} awaiting</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 text-center">
+                  <p className="text-xs text-stone-500 mb-1">Total Bookings</p>
+                  <p className="text-3xl font-bold text-stone-700">{bookings.length}</p>
+                  <p className="text-xs text-stone-400 mt-1">{bookings.filter(b => b.status === 'completed').length} completed</p>
+                </div>
+              </div>
+
+              {/* ── Income Per Expert ── */}
+              <h3 className="text-base font-bold text-stone-900 mb-3">Income by Expert</h3>
+              <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-6">
+                {(() => {
+                  const expertIncome = {};
+                  bookings.filter(b => b.payment?.status === 'paid').forEach(b => {
+                    const id = b.expertId?._id || b.expertId;
+                    const name = b.expertId?.name || 'Unknown';
+                    const email = b.expertId?.email || '';
+                    if (!expertIncome[id]) expertIncome[id] = { name, email, total: 0, sessions: 0 };
+                    expertIncome[id].total += b.payment?.amount || 0;
+                    expertIncome[id].sessions += 1;
+                  });
+                  const sorted = Object.values(expertIncome).sort((a, b) => b.total - a.total);
+                  if (sorted.length === 0) return (
+                    <div className="text-center py-8">
+                      <p className="text-stone-400 text-sm">No income data yet</p>
+                    </div>
+                  );
+                  return (
+                    <table className="w-full text-sm">
+                      <thead className="bg-stone-50 border-b border-stone-200">
+                        <tr>
+                          <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Expert</th>
+                          <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Sessions</th>
+                          <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase">Total Earned</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {sorted.map((e, i) => (
+                          <tr key={i} className="hover:bg-stone-50">
+                            <td className="px-5 py-3">
+                              <p className="font-semibold text-stone-900">{e.name}</p>
+                              <p className="text-xs text-stone-400">{e.email}</p>
+                            </td>
+                            <td className="px-5 py-3 text-stone-600">{e.sessions} session{e.sessions !== 1 ? 's' : ''}</td>
+                            <td className="px-5 py-3 text-right font-bold text-green-600">NPR {e.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
             </div>
+
+            {/* ── Scan Payment Verification ── */}
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <h2 className="text-lg font-bold text-stone-900">Scan Payment Verification</h2>
+                <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {pendingScanPayments.length} pending
+                </span>
+              </div>
             {pendingScanPayments.length === 0 ? (
               <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-12 text-center">
                 <p className="text-4xl mb-3">✅</p>
@@ -505,7 +579,8 @@ const AdminDashboardPage = () => {
                 ))}
               </div>
             )}
-          </div>
+            </div> {/* end scan verification */}
+          </div> {/* end payments tab space-y-8 */}
         )}
 
         {/* Users Tab */}
