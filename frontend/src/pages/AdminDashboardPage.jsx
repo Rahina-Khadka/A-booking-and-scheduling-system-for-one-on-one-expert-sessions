@@ -480,46 +480,41 @@ const AdminDashboardPage = () => {
               {/* ── Income Per Expert ── */}
               <h3 className="text-base font-bold text-stone-900 mb-3">Income by Expert</h3>
               <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-6">
-                {(() => {
-                  const expertIncome = {};
-                  bookings.filter(b => b.payment?.status === 'paid').forEach(b => {
-                    const id = b.expertId?._id || b.expertId;
-                    const name = b.expertId?.name || 'Unknown';
-                    const email = b.expertId?.email || '';
-                    if (!expertIncome[id]) expertIncome[id] = { name, email, total: 0, sessions: 0 };
-                    expertIncome[id].total += b.payment?.amount || 0;
-                    expertIncome[id].sessions += 1;
-                  });
-                  const sorted = Object.values(expertIncome).sort((a, b) => b.total - a.total);
-                  if (sorted.length === 0) return (
-                    <div className="text-center py-8">
-                      <p className="text-stone-400 text-sm">No income data yet</p>
-                    </div>
-                  );
-                  return (
-                    <table className="w-full text-sm">
-                      <thead className="bg-stone-50 border-b border-stone-200">
-                        <tr>
-                          <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Expert</th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Sessions</th>
-                          <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase">Total Earned</th>
+                {bookings.filter(b => b.payment?.status === 'paid').length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-stone-400 text-sm">No income data yet</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-stone-50 border-b border-stone-200">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Expert</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-stone-500 uppercase">Sessions</th>
+                        <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase">Total Earned</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {Object.values(
+                        bookings.filter(b => b.payment?.status === 'paid').reduce((acc, b) => {
+                          const id = String(b.expertId?._id || b.expertId || 'unknown');
+                          if (!acc[id]) acc[id] = { name: b.expertId?.name || 'Unknown', email: b.expertId?.email || '', total: 0, sessions: 0 };
+                          acc[id].total += b.payment?.amount || 0;
+                          acc[id].sessions += 1;
+                          return acc;
+                        }, {})
+                      ).sort((a, b) => b.total - a.total).map((e, i) => (
+                        <tr key={i} className="hover:bg-stone-50">
+                          <td className="px-5 py-3">
+                            <p className="font-semibold text-stone-900">{e.name}</p>
+                            <p className="text-xs text-stone-400">{e.email}</p>
+                          </td>
+                          <td className="px-5 py-3 text-stone-600">{e.sessions} session{e.sessions !== 1 ? 's' : ''}</td>
+                          <td className="px-5 py-3 text-right font-bold text-green-600">NPR {e.total}</td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {sorted.map((e, i) => (
-                          <tr key={i} className="hover:bg-stone-50">
-                            <td className="px-5 py-3">
-                              <p className="font-semibold text-stone-900">{e.name}</p>
-                              <p className="text-xs text-stone-400">{e.email}</p>
-                            </td>
-                            <td className="px-5 py-3 text-stone-600">{e.sessions} session{e.sessions !== 1 ? 's' : ''}</td>
-                            <td className="px-5 py-3 text-right font-bold text-green-600">NPR {e.total}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  );
-                })()}
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
 
