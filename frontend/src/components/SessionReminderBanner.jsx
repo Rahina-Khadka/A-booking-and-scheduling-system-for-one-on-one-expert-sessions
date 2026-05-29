@@ -18,7 +18,7 @@ const SessionReminderBanner = () => {
       const now = new Date();
 
       const soon = bookings
-        .filter(b => b.status === 'confirmed')
+        .filter(b => b.status === 'confirmed' && b.payment?.status === 'paid')
         .map(b => {
           const [h, m] = b.startTime.split(':').map(Number);
           const sessionDate = new Date(b.date);
