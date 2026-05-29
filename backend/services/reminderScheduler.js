@@ -125,6 +125,51 @@ const resetReminders = async (bookingId) => {
 };
 
 /**
+ * Auto-expire pending bookings and mark missed confirmed bookings
+ * - pending bookings past end time → expired
+ * - confirmed bookings past end time → missed
+ */
+const autoExpireBookings = async () => {
+  try {
+    const now = new Date();
+
+    // Find all pending/confirmed bookings from today or earlier
+    const bookings = await Booking.find({
+      status: { $in: ['pending', 'confirmed'] },
+      date: { $lte: now }
+    });
+
+    let expiredCount = 0;
+    let missedCount = 0;
+
+    for (const booking of bookings) {
+      // Build session end DateTime
+      const [h, m] = booking.endTime.split(':').map(Number);
+      const sessionEnd = new Date(booking.date);
+      sessionEnd.setHours(h, m, 0, 0);
+
+      if (now > sessionEnd) {
+        if (booking.status === 'pending') {
+          booking.status = 'expired';
+          await booking.save();
+          expiredCount++;
+        } else if (booking.status === 'confirmed') {
+          booking.status = 'missed';
+          await booking.save();
+          missedCount++;
+        }
+      }
+    }
+
+    if (expiredCount > 0 || missedCount > 0) {
+      console.log(`[OK] Auto-expire: ${expiredCount} expired, ${missedCount} missed`);
+    }
+  } catch (error) {
+    console.error('Auto-expire job error:', error.message);
+  }
+};
+
+/**
  * Start all cron jobs — runs every 5 minutes
  */
 const startReminderScheduler = () => {
@@ -139,6 +184,14 @@ const startReminderScheduler = () => {
   cron.schedule(EVERY_5_MIN, async () => {
     await send1hReminders();
   });
+
+  // Auto-expire pending and missed confirmed bookings
+  cron.schedule(EVERY_5_MIN, async () => {
+    await autoExpireBookings();
+  });
+
+  // Run once immediately on startup
+  autoExpireBookings();
 
   console.log('[OK] Reminder scheduler started (checking every 5 minutes)');
 };

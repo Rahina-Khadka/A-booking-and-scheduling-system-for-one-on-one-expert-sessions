@@ -74,7 +74,7 @@ const BookingHistoryPage = () => {
 
         {/* Filter Tabs */}
         <div className="mb-6 flex flex-wrap gap-2">
-          {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map((status) => (
+          {['all', 'pending', 'confirmed', 'completed', 'cancelled', 'expired', 'missed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
