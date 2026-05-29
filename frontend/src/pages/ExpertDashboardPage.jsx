@@ -69,6 +69,7 @@ const ExpertDashboardPage = () => {
   const [pwSuccess, setPwSuccess] = useState('');
   const [pendingPayments, setPendingPayments] = useState([]);
   const [paymentVerifying, setPaymentVerifying] = useState({});
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => { load(); }, []);
 
@@ -303,8 +304,8 @@ const ExpertDashboardPage = () => {
                       </div>
                       {payment.payment?.scanProof && (
                         <img src={payment.payment.scanProof} alt="Payment proof"
-                          className="w-24 h-24 object-contain rounded-lg border border-stone-200 cursor-pointer"
-                          onClick={() => window.open(payment.payment.scanProof, '_blank')} />
+                          className="w-24 h-24 object-contain rounded-lg border border-stone-200 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setPreviewImage(payment.payment.scanProof)} />
                       )}
                     </div>
                     <div className="flex gap-2 mt-3">
@@ -353,6 +354,19 @@ const ExpertDashboardPage = () => {
       </div>
 
       <AnimatePresence>
+        {/* Image Preview Modal */}
+        {previewImage && (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setPreviewImage(null)}>
+            <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setPreviewImage(null)}
+                className="absolute -top-10 right-0 text-white text-3xl hover:text-gray-300">×</button>
+              <img src={previewImage} alt="Payment proof"
+                className="w-full rounded-2xl shadow-2xl object-contain max-h-[80vh]" />
+              <p className="text-center text-white text-xs mt-3 opacity-60">Click outside to close</p>
+            </div>
+          </div>
+        )}
         {activeModal === 'requests' && (
           <Modal title="Session Requests" onClose={() => setActiveModal(null)}>
             {pending.length > 0 ? (
