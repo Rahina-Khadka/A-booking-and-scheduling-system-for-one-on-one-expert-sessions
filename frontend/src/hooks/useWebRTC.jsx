@@ -93,12 +93,21 @@ const useWebRTC = (bookingId) => {
   };
 
   const handleOffer = async (offer) => {
-    // If already connected, this is a renegotiation offer — don't recreate peer connection
+    // If already connected, this is a renegotiation offer — handle without recreating
     if (peerConnection.current && peerConnection.current.connectionState === 'connected') {
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
-      socketService.sendAnswer(bookingId, answer);
+      try {
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peerConnection.current.createAnswer();
+        await peerConnection.current.setLocalDescription(answer);
+        socketService.sendAnswer(bookingId, answer);
+      } catch (e) {
+        console.warn('[WebRTC] Renegotiation failed, recreating:', e.message);
+        const pc = await createPeerConnection();
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socketService.sendAnswer(bookingId, answer);
+      }
       return;
     }
     const pc = await createPeerConnection();

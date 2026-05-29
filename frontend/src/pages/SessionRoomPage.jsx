@@ -164,8 +164,8 @@ const SessionRoomPage = () => {
           setIsOtherUserOnline(true);
           addSystemMessage('Other participant joined the session');
           showToast('Participant joined 🎉');
-          // Auto-initiate WebRTC offer when other participant joins
-          // Small delay to ensure both sides have registered listeners
+          // When other person joins, the impolite side sends offer
+          // Both sides will try but only one succeeds via polite negotiation
           setTimeout(() => createOffer(), 1000);
         });
         socketService.socket.on('expert-waiting', () => {
@@ -199,24 +199,19 @@ const SessionRoomPage = () => {
       setMessages(prev);
       await initializeMedia(true, false);
 
-      // If other participant is already in the room (we joined second),
-      // send an offer after a short delay to establish WebRTC
-      socketService.socket.once('user-joined', () => {}); // clear any pending
+      // Both sides send offer after media is ready — polite negotiation decides who wins
+      const myId = String(user._id);
+      const expertId = String(current.expertId?._id || current.expertId || '');
+      const userId = String(current.userId?._id || current.userId || '');
+      const otherId = myId === expertId ? userId : expertId;
+      const iAmImpolite = myId < otherId; // lower ID initiates
+
+      // Delay to ensure both sides have media ready and socket listeners registered
       setTimeout(async () => {
-        // Check if other user is online by listening for their presence
-        // We send a ping and if we get user-joined back, they're there
-        // Actually: after joining, server tells others we joined via user-joined
-        // If we joined second, the first person already got user-joined and sent offer
-        // But we need to also send offer in case they didn't
-        // Solution: both sides send offer, but only the one with lower userId wins (polite negotiation)
-        const myId = String(user._id);
-        const otherId = String(current.expertId?._id || current.userId?._id || '');
-        const iAmPolite = myId > otherId; // higher ID is polite (waits)
-        if (!iAmPolite) {
-          // I am impolite — I initiate the offer
+        if (iAmImpolite) {
           createOffer();
         }
-      }, 1500);
+      }, 2000);
 
       setLoading(false);
     } catch {
