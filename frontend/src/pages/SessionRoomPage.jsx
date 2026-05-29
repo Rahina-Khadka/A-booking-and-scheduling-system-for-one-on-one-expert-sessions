@@ -164,8 +164,8 @@ const SessionRoomPage = () => {
           setIsOtherUserOnline(true);
           addSystemMessage('Other participant joined the session');
           showToast('Participant joined 🎉');
-          // When other person joins, send a new offer
-          setTimeout(() => createOffer(false), 1000);
+          // Don't create a new offer here — the timeout below handles it
+          // This prevents race conditions with duplicate offers
         });
         socketService.socket.on('expert-waiting', () => {
           showToast('Your expert has joined and is waiting for you! 🎯');
@@ -200,16 +200,23 @@ const SessionRoomPage = () => {
 
       // Determine roles: lower userId is the offerer (impolite), higher is polite
       const myId = String(user._id);
-      const expertId = String(current.expertId?._id || current.expertId || '');
-      const userId = String(current.userId?._id || current.userId || '');
-      const otherId = myId === expertId ? userId : expertId;
+      const expertIdStr = String(current.expertId?._id || current.expertId || '');
+      const userIdStr = String(current.userId?._id || current.userId || '');
+      const otherId = myId === expertIdStr ? userIdStr : expertIdStr;
       const iAmPolite = myId > otherId;
 
-      // Create peer connection with polite flag set
-      // Only the impolite side initiates the offer
+      console.log('[WebRTC] My role:', iAmPolite ? 'polite (answerer)' : 'impolite (offerer)');
+
+      // Wait for both sides to be ready, then only the impolite side sends offer
       setTimeout(async () => {
-        await createOffer(iAmPolite);
-      }, 2000);
+        if (!iAmPolite) {
+          // I am the offerer
+          await createOffer(false);
+        } else {
+          // I am polite — just create the peer connection and wait for offer
+          await createOffer(true); // creates PC but polite side will handle collision
+        }
+      }, 2500);
 
       setLoading(false);
     } catch {
