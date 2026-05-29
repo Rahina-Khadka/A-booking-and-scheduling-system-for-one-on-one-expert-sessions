@@ -7,7 +7,6 @@ const FALLBACK_ICE = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
     {
       urls: [
         'turn:openrelay.metered.ca:80',
@@ -39,103 +38,127 @@ const useWebRTC = (bookingId) => {
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
   const iceConfigRef = useRef(null);
+  const makingOfferRef = useRef(false);
+  const ignoreOfferRef = useRef(false);
+  const isPoliteRef = useRef(false); // set from outside
 
   const initializeMedia = async (audio = true, video = false) => {
     let stream;
     try {
-      // Try with enhanced audio constraints first
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: audio ? {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        } : false,
+        audio: audio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
         video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
       });
     } catch {
-      // Fallback to basic constraints if enhanced fails
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: audio,
-        video: video,
-      });
+      stream = await navigator.mediaDevices.getUserMedia({ audio, video });
     }
     localStreamRef.current = stream;
     setLocalStream(stream);
     setIsAudioEnabled(audio ? stream.getAudioTracks().length > 0 : false);
     setIsVideoEnabled(video ? stream.getVideoTracks().length > 0 : false);
-    // Pre-fetch ICE servers while media initializes
     iceConfigRef.current = await fetchIceServers();
     return stream;
   };
 
-  const createPeerConnection = async () => {
-    if (peerConnection.current) peerConnection.current.close();
+  const createPeerConnection = async (isPolite) => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    isPoliteRef.current = isPolite;
     const iceConfig = iceConfigRef.current || await fetchIceServers();
     const pc = new RTCPeerConnection(iceConfig);
+
     if (localStreamRef.current) {
       const tracks = localStreamRef.current.getTracks();
       console.log('[WebRTC] Adding tracks to PC:', tracks.map(t => `${t.kind}:${t.enabled}`));
       tracks.forEach(t => pc.addTrack(t, localStreamRef.current));
     }
+
     pc.ontrack = (e) => {
       setRemoteStream(e.streams[0]);
       setIsConnected(true);
     };
+
     pc.onicecandidate = (e) => {
       if (e.candidate) socketService.sendIceCandidate(bookingId, e.candidate);
     };
+
     pc.onconnectionstatechange = () => {
+      console.log('[WebRTC] Connection state:', pc.connectionState);
       if (['disconnected', 'failed'].includes(pc.connectionState)) setIsConnected(false);
       if (pc.connectionState === 'connected') setIsConnected(true);
     };
-    pc.onicegatheringstatechange = () => {
-      console.log('[WebRTC] ICE gathering:', pc.iceGatheringState);
-    };
+
     pc.oniceconnectionstatechange = () => {
       console.log('[WebRTC] ICE connection:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         setIsConnected(true);
       }
     };
+
+    // Perfect negotiation: handle onnegotiationneeded
+    pc.onnegotiationneeded = async () => {
+      try {
+        makingOfferRef.current = true;
+        await pc.setLocalDescription();
+        socketService.sendOffer(bookingId, pc.localDescription);
+      } catch (e) {
+        console.error('[WebRTC] negotiationneeded error:', e);
+      } finally {
+        makingOfferRef.current = false;
+      }
+    };
+
     peerConnection.current = pc;
     return pc;
   };
 
-  const createOffer = async () => {
-    const pc = await createPeerConnection();
-    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pc.setLocalDescription(offer);
-    socketService.sendOffer(bookingId, offer);
+  const createOffer = async (isPolite = false) => {
+    const pc = await createPeerConnection(isPolite);
+    try {
+      makingOfferRef.current = true;
+      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+      await pc.setLocalDescription(offer);
+      socketService.sendOffer(bookingId, offer);
+    } finally {
+      makingOfferRef.current = false;
+    }
   };
 
   const handleOffer = async (offer) => {
-    // If already connected, this is a renegotiation offer — handle without recreating
-    if (peerConnection.current && peerConnection.current.connectionState === 'connected') {
-      try {
-        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peerConnection.current.createAnswer();
-        await peerConnection.current.setLocalDescription(answer);
-        socketService.sendAnswer(bookingId, answer);
-      } catch (e) {
-        console.warn('[WebRTC] Renegotiation failed, recreating:', e.message);
-        const pc = await createPeerConnection();
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socketService.sendAnswer(bookingId, answer);
-      }
+    const pc = peerConnection.current;
+    if (!pc) return;
+
+    const offerCollision = makingOfferRef.current || pc.signalingState !== 'stable';
+    ignoreOfferRef.current = !isPoliteRef.current && offerCollision;
+
+    if (ignoreOfferRef.current) {
+      console.log('[WebRTC] Ignoring colliding offer (impolite side)');
       return;
     }
-    const pc = await createPeerConnection();
-    await pc.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socketService.sendAnswer(bookingId, answer);
+
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socketService.sendAnswer(bookingId, answer);
+    } catch (e) {
+      console.error('[WebRTC] handleOffer error:', e.message);
+    }
   };
 
   const handleAnswer = async (answer) => {
-    if (peerConnection.current) {
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+    const pc = peerConnection.current;
+    if (!pc) return;
+    if (pc.signalingState === 'stable') {
+      console.log('[WebRTC] Ignoring answer in stable state');
+      return;
+    }
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    } catch (e) {
+      console.error('[WebRTC] handleAnswer error:', e.message);
     }
   };
 
@@ -144,7 +167,9 @@ const useWebRTC = (bookingId) => {
       try {
         await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (e) {
-        console.warn('[WebRTC] ICE candidate error:', e.message);
+        if (!ignoreOfferRef.current) {
+          console.warn('[WebRTC] ICE candidate error:', e.message);
+        }
       }
     }
   };
@@ -168,17 +193,12 @@ const useWebRTC = (bookingId) => {
     if (!isVideoEnabled) {
       const vs = await navigator.mediaDevices.getUserMedia({ video: true });
       const vt = vs.getVideoTracks()[0];
-      // Create new stream with existing audio + new video track
       const existingAudio = localStreamRef.current?.getAudioTracks() || [];
       const newStream = new MediaStream([...existingAudio, vt]);
       localStreamRef.current = newStream;
-      setLocalStream(newStream); // new reference triggers useEffect
+      setLocalStream(newStream);
       if (peerConnection.current) {
         peerConnection.current.addTrack(vt, newStream);
-        // Renegotiate to send new video track to remote peer
-        const offer = await peerConnection.current.createOffer();
-        await peerConnection.current.setLocalDescription(offer);
-        socketService.sendOffer(bookingId, offer);
       }
       setIsVideoEnabled(true);
     } else {
@@ -188,13 +208,7 @@ const useWebRTC = (bookingId) => {
         const existingAudio = localStreamRef.current?.getAudioTracks() || [];
         const newStream = new MediaStream([...existingAudio]);
         localStreamRef.current = newStream;
-        setLocalStream(newStream); // new reference triggers useEffect
-        // Renegotiate to remove video track from remote peer
-        if (peerConnection.current) {
-          const offer = await peerConnection.current.createOffer();
-          await peerConnection.current.setLocalDescription(offer);
-          socketService.sendOffer(bookingId, offer);
-        }
+        setLocalStream(newStream);
         setIsVideoEnabled(false);
       }
     }

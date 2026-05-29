@@ -164,9 +164,8 @@ const SessionRoomPage = () => {
           setIsOtherUserOnline(true);
           addSystemMessage('Other participant joined the session');
           showToast('Participant joined 🎉');
-          // When other person joins, the impolite side sends offer
-          // Both sides will try but only one succeeds via polite negotiation
-          setTimeout(() => createOffer(), 1000);
+          // When other person joins, send a new offer
+          setTimeout(() => createOffer(false), 1000);
         });
         socketService.socket.on('expert-waiting', () => {
           showToast('Your expert has joined and is waiting for you! 🎯');
@@ -199,18 +198,17 @@ const SessionRoomPage = () => {
       setMessages(prev);
       await initializeMedia(true, false);
 
-      // Both sides send offer after media is ready — polite negotiation decides who wins
+      // Determine roles: lower userId is the offerer (impolite), higher is polite
       const myId = String(user._id);
       const expertId = String(current.expertId?._id || current.expertId || '');
       const userId = String(current.userId?._id || current.userId || '');
       const otherId = myId === expertId ? userId : expertId;
-      const iAmImpolite = myId < otherId; // lower ID initiates
+      const iAmPolite = myId > otherId;
 
-      // Delay to ensure both sides have media ready and socket listeners registered
+      // Create peer connection with polite flag set
+      // Only the impolite side initiates the offer
       setTimeout(async () => {
-        if (iAmImpolite) {
-          createOffer();
-        }
+        await createOffer(iAmPolite);
       }, 2000);
 
       setLoading(false);
