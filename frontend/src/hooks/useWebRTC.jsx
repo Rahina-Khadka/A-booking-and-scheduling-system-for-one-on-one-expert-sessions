@@ -42,13 +42,8 @@ const useWebRTC = (bookingId) => {
 
   const initializeMedia = async (audio = true, video = false) => {
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: audio ? {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        sampleRate: 48000,
-      } : false,
-      video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
+      audio,
+      video: video ? { width: 1280, height: 720 } : false,
     });
     localStreamRef.current = stream;
     setLocalStream(stream);
@@ -99,7 +94,7 @@ const useWebRTC = (bookingId) => {
 
   const handleOffer = async (offer) => {
     // If already connected, this is a renegotiation offer — don't recreate peer connection
-    if (peerConnection.current && ['connected', 'completed'].includes(peerConnection.current.iceConnectionState)) {
+    if (peerConnection.current && peerConnection.current.connectionState === 'connected') {
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
@@ -116,21 +111,6 @@ const useWebRTC = (bookingId) => {
   const handleAnswer = async (answer) => {
     if (peerConnection.current) {
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
-      // Apply bandwidth constraints after connection established
-      try {
-        const senders = peerConnection.current.getSenders();
-        for (const sender of senders) {
-          const params = sender.getParameters();
-          if (!params.encodings) params.encodings = [{}];
-          if (sender.track?.kind === 'video') {
-            params.encodings[0].maxBitrate = 1000000; // 1 Mbps for video
-            params.encodings[0].maxFramerate = 30;
-          } else if (sender.track?.kind === 'audio') {
-            params.encodings[0].maxBitrate = 64000; // 64 kbps for audio
-          }
-          await sender.setParameters(params);
-        }
-      } catch {}
     }
   };
 

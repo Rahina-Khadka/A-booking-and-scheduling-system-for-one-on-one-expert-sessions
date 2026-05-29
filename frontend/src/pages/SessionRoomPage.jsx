@@ -117,7 +117,12 @@ const SessionRoomPage = () => {
   }, [bookingId]);
 
   useEffect(() => { if (localVideoRef.current  && localStream)  localVideoRef.current.srcObject  = localStream;  }, [localStream]);
-  useEffect(() => { if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream; }, [remoteStream]);
+  useEffect(() => { 
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      setIsOtherUserOnline(true); // if we have remote stream, they're definitely online
+    }
+  }, [remoteStream]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   // track WebRTC connection state for quality indicator

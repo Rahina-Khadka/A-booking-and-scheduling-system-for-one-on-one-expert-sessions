@@ -7,6 +7,7 @@ import SessionReminderBanner from '../components/SessionReminderBanner';
 import userService from '../services/userService';
 import bookingService from '../services/bookingService';
 import reviewService from '../services/reviewService';
+import api from '../services/api';
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
@@ -66,14 +67,20 @@ const ExpertDashboardPage = () => {
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState('');
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [paymentVerifying, setPaymentVerifying] = useState({});
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
     try {
       const p = await userService.getProfile();
-      const [b, r] = await Promise.all([bookingService.getBookings(), reviewService.getExpertReviews(p._id).catch(() => [])]);
-      setProfile(p); setBookings(b); setReviews(r);
+      const [b, r, pp] = await Promise.all([
+        bookingService.getBookings(),
+        reviewService.getExpertReviews(p._id).catch(() => []),
+        api.get('/payments/scan-pending/expert').then(r => r.data).catch(() => [])
+      ]);
+      setProfile(p); setBookings(b); setReviews(r); setPendingPayments(pp);
       setForm({ name: p.name||'', phone: p.phone||'', bio: p.bio||'', expertise: p.expertise||[], profilePicture: p.profilePicture||'', hourlyRate: p.hourlyRate||0, isOnline: p.isOnline||false, paymentQr: p.paymentQr||'', paymentName: p.paymentName||'' });
       setAvatarPreview(p.profilePicture || null);
       setQrPreview(p.paymentQr || null);
@@ -88,6 +95,19 @@ const ExpertDashboardPage = () => {
       }
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const handleVerifyPayment = async (bookingId, action) => {
+    setPaymentVerifying(prev => ({ ...prev, [bookingId]: true }));
+    try {
+      await api.put(`/payments/scan-verify/expert/${bookingId}`, { action });
+      setPendingPayments(prev => prev.filter(p => p._id !== bookingId));
+      load(); // refresh bookings
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to verify payment');
+    } finally {
+      setPaymentVerifying(prev => ({ ...prev, [bookingId]: false }));
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -267,6 +287,45 @@ const ExpertDashboardPage = () => {
               </div>
             ) : <p className="text-stone-400 text-sm">No upcoming sessions.</p>}
           </div>
+
+          {/* Payment Verification Section */}
+          {pendingPayments.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6 col-span-full">
+              <h2 className="text-lg font-bold text-stone-900 mb-4">💳 Pending Payment Proofs ({pendingPayments.length})</h2>
+              <div className="space-y-4">
+                {pendingPayments.map(payment => (
+                  <div key={payment._id} className="border border-stone-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-stone-900">{payment.userId?.name}</p>
+                        <p className="text-xs text-stone-500">{payment.userId?.email}</p>
+                        <p className="text-sm text-stone-700 mt-1">Amount: <span className="font-bold text-green-700">NPR {payment.payment?.amount}</span></p>
+                      </div>
+                      {payment.payment?.scanProof && (
+                        <img src={payment.payment.scanProof} alt="Payment proof"
+                          className="w-24 h-24 object-contain rounded-lg border border-stone-200 cursor-pointer"
+                          onClick={() => window.open(payment.payment.scanProof, '_blank')} />
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => handleVerifyPayment(payment._id, 'approve')}
+                        disabled={paymentVerifying[payment._id]}
+                        className="flex-1 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+                        {paymentVerifying[payment._id] ? 'Processing...' : '✅ Approve'}
+                      </button>
+                      <button
+                        onClick={() => handleVerifyPayment(payment._id, 'reject')}
+                        disabled={paymentVerifying[payment._id]}
+                        className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50">
+                        ❌ Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
