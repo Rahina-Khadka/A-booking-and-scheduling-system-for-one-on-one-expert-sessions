@@ -574,8 +574,8 @@ const AdminDashboardPage = () => {
                 ))}
               </div>
             )}
-            </div> {/* end scan verification */}
-          </div> {/* end payments tab space-y-8 */}
+            </div>
+          </div>
         )}
 
         {/* Users Tab */}
