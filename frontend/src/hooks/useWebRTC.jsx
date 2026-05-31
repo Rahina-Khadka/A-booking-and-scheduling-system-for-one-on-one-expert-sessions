@@ -7,20 +7,26 @@ import api from '../services/api';
 // ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_ICE = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
     {
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp',
-        'turn:openrelay.metered.ca:80?transport=tcp',
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
+      urls: 'turn:global.relay.metered.ca:80',
+      username: 'b29613b5747101f9ecf1de1e',
+      credential: 'GNE3dP1FyYM+bse4',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+      username: 'b29613b5747101f9ecf1de1e',
+      credential: 'GNE3dP1FyYM+bse4',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:443',
+      username: 'b29613b5747101f9ecf1de1e',
+      credential: 'GNE3dP1FyYM+bse4',
+    },
+    {
+      urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+      username: 'b29613b5747101f9ecf1de1e',
+      credential: 'GNE3dP1FyYM+bse4',
     },
   ],
   iceCandidatePoolSize: 10,

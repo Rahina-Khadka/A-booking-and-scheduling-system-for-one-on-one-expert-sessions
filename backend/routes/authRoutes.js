@@ -42,35 +42,33 @@ router.get(
 // Get current user profile (used by GoogleAuthSuccessPage)
 router.get('/google/current', protect, getCurrentGoogleUser);
 
-// TURN server credentials for WebRTC — fetched live from Metered TURN API
-router.get('/turn-credentials', protect, async (req, res) => {
-  try {
-    const response = await fetch(
-      'https://rahina.metered.live/api/v1/turn/credentials?apiKey=tDD_Mgh_5C0ib5TGxBzDyoDCOfBzZakPSkF1JYd_J1lc5wl7'
-    );
-    if (!response.ok) throw new Error(`Metered API error: ${response.status}`);
-    const iceServers = await response.json();
-    console.log('[TURN] Fetched', iceServers.length, 'ICE servers from Metered');
-    res.json({ iceServers });
-  } catch (err) {
-    console.error('[TURN] Failed to fetch from Metered, using fallback:', err.message);
-    // Fallback in case Metered API is unreachable
-    res.json({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: [
-            'turn:openrelay.metered.ca:80',
-            'turn:openrelay.metered.ca:443',
-            'turn:openrelay.metered.ca:443?transport=tcp',
-          ],
-          username: 'openrelayproject',
-          credential: 'openrelayproject',
-        },
-      ]
-    });
-  }
+// TURN server credentials for WebRTC — Metered TURN (rahina.metered.live)
+router.get('/turn-credentials', protect, (req, res) => {
+  res.json({
+    iceServers: [
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: 'b29613b5747101f9ecf1de1e',
+        credential: 'GNE3dP1FyYM+bse4',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+        username: 'b29613b5747101f9ecf1de1e',
+        credential: 'GNE3dP1FyYM+bse4',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: 'b29613b5747101f9ecf1de1e',
+        credential: 'GNE3dP1FyYM+bse4',
+      },
+      {
+        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+        username: 'b29613b5747101f9ecf1de1e',
+        credential: 'GNE3dP1FyYM+bse4',
+      },
+    ]
+  });
 });
 
 module.exports = router;
