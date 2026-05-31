@@ -42,56 +42,35 @@ router.get(
 // Get current user profile (used by GoogleAuthSuccessPage)
 router.get('/google/current', protect, getCurrentGoogleUser);
 
-// TURN server credentials for WebRTC
-router.get('/turn-credentials', protect, (req, res) => {
-  res.json({
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
-      // Open Relay — Metered free TURN
-      {
-        urls: [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:443?transport=tcp',
-          'turn:openrelay.metered.ca:80?transport=tcp',
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      // Metered relay (secondary)
-      {
-        urls: [
-          'turn:a.relay.metered.ca:80',
-          'turn:a.relay.metered.ca:80?transport=tcp',
-          'turn:a.relay.metered.ca:443',
-          'turn:a.relay.metered.ca:443?transport=tcp',
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      // Viagenie public TURN (long-standing free server)
-      {
-        urls: 'turn:numb.viagenie.ca',
-        credential: 'muazkh',
-        username: 'webrtc@live.com',
-      },
-      // Additional public TURN
-      {
-        urls: 'turn:192.158.29.39:3478?transport=udp',
-        credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-        username: '28224511:1379330808',
-      },
-      {
-        urls: 'turn:192.158.29.39:3478?transport=tcp',
-        credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-        username: '28224511:1379330808',
-      },
-    ]
-  });
+// TURN server credentials for WebRTC — fetched live from Metered TURN API
+router.get('/turn-credentials', protect, async (req, res) => {
+  try {
+    const response = await fetch(
+      'https://rahina.metered.live/api/v1/turn/credentials?apiKey=tDD_Mgh_5C0ib5TGxBzDyoDCOfBzZakPSkF1JYd_J1lc5wl7'
+    );
+    if (!response.ok) throw new Error(`Metered API error: ${response.status}`);
+    const iceServers = await response.json();
+    console.log('[TURN] Fetched', iceServers.length, 'ICE servers from Metered');
+    res.json({ iceServers });
+  } catch (err) {
+    console.error('[TURN] Failed to fetch from Metered, using fallback:', err.message);
+    // Fallback in case Metered API is unreachable
+    res.json({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        {
+          urls: [
+            'turn:openrelay.metered.ca:80',
+            'turn:openrelay.metered.ca:443',
+            'turn:openrelay.metered.ca:443?transport=tcp',
+          ],
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+      ]
+    });
+  }
 });
 
 module.exports = router;
