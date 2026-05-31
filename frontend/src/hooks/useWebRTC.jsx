@@ -3,11 +3,18 @@ import socketService from '../services/socketService';
 import api from '../services/api';
 
 // ── ICE configuration ─────────────────────────────────────────────────────────
+// Multiple STUN + TURN servers for maximum reliability across networks.
+// TURN is essential when both peers are behind strict NAT/firewalls (common
+// on mobile networks and corporate WiFi).
 const FALLBACK_ICE = {
   iceServers: [
+    // Google STUN — fast public IP discovery
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // Open Relay TURN — relay fallback when direct/STUN fails
     {
       urls: [
         'turn:openrelay.metered.ca:80',
@@ -18,8 +25,20 @@ const FALLBACK_ICE = {
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
+    // Metered free TURN (secondary relay)
+    {
+      urls: [
+        'turn:a.relay.metered.ca:80',
+        'turn:a.relay.metered.ca:80?transport=tcp',
+        'turn:a.relay.metered.ca:443',
+        'turn:a.relay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
   iceCandidatePoolSize: 10,
+  iceTransportPolicy: 'all', // try direct first, fall back to TURN
 };
 
 const fetchIceServers = async () => {
@@ -41,6 +60,11 @@ const useWebRTC = (bookingId) => {
   const peerConnection  = useRef(null);
   const localStreamRef  = useRef(null);
   const iceConfigRef    = useRef(null);
+
+  // Queue ICE candidates that arrive before setRemoteDescription is called.
+  // They are flushed once the remote description is set.
+  const iceCandidateQueue = useRef([]);
+  const remoteDescSet     = useRef(false);
 
   // Accumulate remote tracks by kind so a second ontrack call (video arriving
   // after audio) never loses the first track.
@@ -83,7 +107,9 @@ const useWebRTC = (bookingId) => {
       peerConnection.current.close();
       peerConnection.current = null;
     }
-    remoteTracksRef.current = { audio: null, video: null };
+    remoteTracksRef.current   = { audio: null, video: null };
+    iceCandidateQueue.current = [];   // clear queued candidates for fresh connection
+    remoteDescSet.current     = false;
     setRemoteStream(null);
 
     const iceConfig = iceConfigRef.current || await fetchIceServers();
@@ -174,6 +200,9 @@ const useWebRTC = (bookingId) => {
     console.log('[WebRTC] Received offer, signalingState:', pc.signalingState);
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      remoteDescSet.current = true;
+      // Flush any ICE candidates that arrived before the remote description
+      await flushIceCandidateQueue(pc);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       console.log('[WebRTC] Sending answer');
@@ -193,6 +222,9 @@ const useWebRTC = (bookingId) => {
     }
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      remoteDescSet.current = true;
+      // Flush any ICE candidates that arrived before the remote description
+      await flushIceCandidateQueue(pc);
     } catch (err) {
       console.error('[WebRTC] handleAnswer error:', err.message);
     }
@@ -201,10 +233,31 @@ const useWebRTC = (bookingId) => {
   const handleIceCandidate = async (candidate) => {
     const pc = peerConnection.current;
     if (!pc) return;
+    if (!remoteDescSet.current) {
+      // Remote description not set yet — queue the candidate
+      console.log('[WebRTC] Queuing ICE candidate (remote desc not set yet)');
+      iceCandidateQueue.current.push(candidate);
+      return;
+    }
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
       console.warn('[WebRTC] addIceCandidate error:', err.message);
+    }
+  };
+
+  // Flush all queued ICE candidates after remote description is set
+  const flushIceCandidateQueue = async (pc) => {
+    const queue = iceCandidateQueue.current;
+    if (queue.length === 0) return;
+    console.log('[WebRTC] Flushing', queue.length, 'queued ICE candidates');
+    iceCandidateQueue.current = [];
+    for (const candidate of queue) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn('[WebRTC] Queued ICE candidate error:', err.message);
+      }
     }
   };
 
@@ -275,7 +328,9 @@ const useWebRTC = (bookingId) => {
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
-    remoteTracksRef.current = { audio: null, video: null };
+    remoteTracksRef.current   = { audio: null, video: null };
+    iceCandidateQueue.current = [];
+    remoteDescSet.current     = false;
     peerConnection.current?.close();
     peerConnection.current = null;
     setLocalStream(null);
