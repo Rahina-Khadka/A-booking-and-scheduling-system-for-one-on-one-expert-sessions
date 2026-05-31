@@ -204,7 +204,10 @@ const SessionRoomPage = () => {
       socketService.joinRoom(bookingId);
       const prev = await messageService.getMessages(bookingId);
       setMessages(prev);
-      await initializeMedia(true, false);
+
+      // Request BOTH audio AND video from the start so both tracks are
+      // included in the initial SDP offer/answer exchange.
+      await initializeMedia(true, true);
 
       // Determine roles: lower userId = offerer, higher userId = answerer
       const myId        = String(user._id);
