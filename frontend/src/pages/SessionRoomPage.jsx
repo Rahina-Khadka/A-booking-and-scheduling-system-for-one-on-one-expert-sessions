@@ -214,25 +214,28 @@ const SessionRoomPage = () => {
       setMessages(prev);
       await initializeMedia(true, false);
 
-      // Determine roles: lower userId is the offerer (impolite), higher is polite
-      const myId = String(user._id);
+      // Determine roles: lower userId = offerer, higher userId = answerer
+      const myId        = String(user._id);
       const expertIdStr = String(current.expertId?._id || current.expertId || '');
-      const userIdStr = String(current.userId?._id || current.userId || '');
-      const otherId = myId === expertIdStr ? userIdStr : expertIdStr;
-      const iAmPolite = myId > otherId;
+      const userIdStr   = String(current.userId?._id   || current.userId   || '');
+      const otherId     = myId === expertIdStr ? userIdStr : expertIdStr;
+      const iAmPolite   = myId > otherId;   // answerer
 
-      console.log('[WebRTC] My role:', iAmPolite ? 'polite (answerer)' : 'impolite (offerer)');
+      console.log('[WebRTC] role:', iAmPolite ? 'answerer' : 'offerer');
 
-      // Register signaling listeners FIRST so we never miss an incoming offer/answer,
-      // regardless of which side fires first. createOffer() sets peerConnection.current
-      // before any socket message can arrive (JS is single-threaded), so the handlers
-      // will always have a valid PC when they run.
-      //
-      // Offerer waits 3 s, answerer waits 2 s — gives the answerer time to be ready.
-      const delay = iAmPolite ? 2000 : 3000;
-      setTimeout(async () => {
-        await createOffer(iAmPolite);
-        registerSignalingListeners(); // safe: PC is set synchronously inside createOffer
+      // Step 1 — Register signaling listeners RIGHT NOW before any timeout.
+      //          The PC doesn't exist yet, but handleOffer/handleAnswer read
+      //          peerConnection.current at call-time via ref, so they will
+      //          always see the PC created in step 2.
+      registerSignalingListeners();
+
+      // Step 2 — Create the peer connection (and send offer if offerer).
+      //          Answerer fires at 1 s, offerer fires at 2.5 s.
+      //          This guarantees the answerer's PC exists and listeners are
+      //          registered well before the offer arrives.
+      const delay = iAmPolite ? 1000 : 2500;
+      setTimeout(() => {
+        createOffer(iAmPolite);
       }, delay);
 
       setLoading(false);
@@ -405,9 +408,9 @@ const SessionRoomPage = () => {
                   <p className="text-gray-400 text-sm mt-1">Waiting to join…</p>
                 </div>
                 {isOtherUserOnline && !isConnected && (
-                  <button onClick={() => { createOffer(); addSystemMessage('Initiating call…'); }}
+                  <button onClick={() => { addSystemMessage('Retrying connection…'); createOffer(false); registerSignalingListeners(); }}
                     className="px-6 py-2.5 bg-accent-600 hover:bg-accent-500 text-white rounded-full text-sm font-semibold transition-colors shadow-lg">
-                    Start Session
+                    Retry Connection
                   </button>
                 )}
               </div>
