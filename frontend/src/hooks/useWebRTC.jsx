@@ -1,19 +1,17 @@
 ﻿import { useState, useRef, useCallback } from 'react';
 import socketService from '../services/socketService';
+import api from '../services/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ICE / TURN configuration
-// Using multiple STUN servers + two TURN relay providers for maximum
-// compatibility across different networks and NAT types.
+// Fallback ICE config used if backend fetch fails
 // ─────────────────────────────────────────────────────────────────────────────
-const ICE_CONFIG = {
+const FALLBACK_ICE = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    // Open Relay TURN (Metered free tier)
     {
       urls: [
         'turn:openrelay.metered.ca:80',
@@ -24,7 +22,6 @@ const ICE_CONFIG = {
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
-    // Metered relay (secondary)
     {
       urls: [
         'turn:a.relay.metered.ca:80',
@@ -35,9 +32,37 @@ const ICE_CONFIG = {
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
+    {
+      urls: 'turn:numb.viagenie.ca',
+      credential: 'muazkh',
+      username: 'webrtc@live.com',
+    },
+    {
+      urls: 'turn:192.158.29.39:3478?transport=udp',
+      credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+      username: '28224511:1379330808',
+    },
+    {
+      urls: 'turn:192.158.29.39:3478?transport=tcp',
+      credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+      username: '28224511:1379330808',
+    },
   ],
   iceCandidatePoolSize: 10,
   iceTransportPolicy: 'all',
+};
+
+const fetchIceConfig = async () => {
+  try {
+    const res = await api.get('/auth/turn-credentials');
+    if (res.data?.iceServers?.length) {
+      console.log('[WebRTC] Using ICE servers from backend:', res.data.iceServers.length, 'servers');
+      return { iceServers: res.data.iceServers, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
+    }
+  } catch (e) {
+    console.warn('[WebRTC] Failed to fetch ICE config from backend, using fallback:', e.message);
+  }
+  return FALLBACK_ICE;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,6 +80,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
 
   const pcRef             = useRef(null);   // RTCPeerConnection
   const localStreamRef    = useRef(null);   // local MediaStream
+  const iceConfigRef      = useRef(null);   // fetched ICE config
   const remoteTracksRef   = useRef({ audio: null, video: null });
   const iceCandidateQueue = useRef([]);     // candidates queued before remote desc
   const remoteDescSet     = useRef(false);
@@ -124,6 +150,8 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
     setIsVideoEnabled(stream.getVideoTracks().length > 0);
     console.log('[WebRTC] Local stream tracks:',
       stream.getTracks().map(t => `${t.kind}:${t.enabled}`).join(', '));
+    // Fetch ICE config now so it's ready when createPeerConnection is called
+    iceConfigRef.current = await fetchIceConfig();
     return stream;
   }, []);
 
@@ -140,7 +168,9 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
     remoteDescSet.current     = false;
     setRemoteStream(null);
 
-    const pc = new RTCPeerConnection(ICE_CONFIG);
+    const iceConfig = iceConfigRef.current || FALLBACK_ICE;
+    console.log('[WebRTC] Creating RTCPeerConnection with', iceConfig.iceServers.length, 'ICE servers');
+    const pc = new RTCPeerConnection(iceConfig);
 
     // ── Add all local tracks ──────────────────────────────────────────────
     if (localStreamRef.current) {
@@ -384,6 +414,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current    = null;
+    iceConfigRef.current      = null;
     remoteTracksRef.current   = { audio: null, video: null };
     iceCandidateQueue.current = [];
     remoteDescSet.current     = false;

@@ -49,6 +49,9 @@ router.get('/turn-credentials', protect, (req, res) => {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      // Open Relay — Metered free TURN
       {
         urls: [
           'turn:openrelay.metered.ca:80',
@@ -58,6 +61,34 @@ router.get('/turn-credentials', protect, (req, res) => {
         ],
         username: 'openrelayproject',
         credential: 'openrelayproject',
+      },
+      // Metered relay (secondary)
+      {
+        urls: [
+          'turn:a.relay.metered.ca:80',
+          'turn:a.relay.metered.ca:80?transport=tcp',
+          'turn:a.relay.metered.ca:443',
+          'turn:a.relay.metered.ca:443?transport=tcp',
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      // Viagenie public TURN (long-standing free server)
+      {
+        urls: 'turn:numb.viagenie.ca',
+        credential: 'muazkh',
+        username: 'webrtc@live.com',
+      },
+      // Additional public TURN
+      {
+        urls: 'turn:192.158.29.39:3478?transport=udp',
+        credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+        username: '28224511:1379330808',
+      },
+      {
+        urls: 'turn:192.158.29.39:3478?transport=tcp',
+        credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+        username: '28224511:1379330808',
       },
     ]
   });
