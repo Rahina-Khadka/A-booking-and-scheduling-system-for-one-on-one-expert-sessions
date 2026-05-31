@@ -79,6 +79,7 @@ const SessionRoomPage = () => {
   const messagesEndRef    = useRef(null);
   const localVideoRef     = useRef(null);
   const remoteVideoRef    = useRef(null);
+  const remoteAudioRef    = useRef(null);   // dedicated audio element — bypasses autoplay restrictions
   const listenersRef      = useRef(false);
   const typingTimerRef    = useRef(null);
   const localTypingTimer  = useRef(null);
@@ -116,12 +117,28 @@ const SessionRoomPage = () => {
     };
   }, [bookingId]);
 
-  useEffect(() => { if (localVideoRef.current  && localStream)  localVideoRef.current.srcObject  = localStream;  }, [localStream]);
-  useEffect(() => { 
-    if (remoteVideoRef.current && remoteStream) {
+  useEffect(() => { if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream; }, [localStream]);
+
+  useEffect(() => {
+    if (!remoteStream) return;
+
+    // Attach stream to the video element (renders remote video)
+    if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      setIsOtherUserOnline(true); // if we have remote stream, they're definitely online
+      // Explicitly call play() — autoPlay attribute alone can be blocked by
+      // browser autoplay policy when the stream contains audio tracks.
+      remoteVideoRef.current.play().catch(() => {});
     }
+
+    // Attach stream to the dedicated audio element.
+    // Using a separate <audio> element is more reliable than relying on the
+    // <video> element to play audio, especially before a video track exists.
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(() => {});
+    }
+
+    setIsOtherUserOnline(true);
   }, [remoteStream]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -190,7 +207,6 @@ const SessionRoomPage = () => {
           setIsTyping(false);
           clearTimeout(typingTimerRef.current);
         });
-        registerSignalingListeners();
       }
 
       socketService.joinRoom(bookingId);
@@ -207,16 +223,17 @@ const SessionRoomPage = () => {
 
       console.log('[WebRTC] My role:', iAmPolite ? 'polite (answerer)' : 'impolite (offerer)');
 
-      // Wait for both sides to be ready, then only the impolite side sends offer
+      // Register signaling listeners FIRST so we never miss an incoming offer/answer,
+      // regardless of which side fires first. createOffer() sets peerConnection.current
+      // before any socket message can arrive (JS is single-threaded), so the handlers
+      // will always have a valid PC when they run.
+      //
+      // Offerer waits 3 s, answerer waits 2 s — gives the answerer time to be ready.
+      const delay = iAmPolite ? 2000 : 3000;
       setTimeout(async () => {
-        if (!iAmPolite) {
-          // I am the offerer
-          await createOffer(false);
-        } else {
-          // I am polite — just create the peer connection and wait for offer
-          await createOffer(true); // creates PC but polite side will handle collision
-        }
-      }, 2500);
+        await createOffer(iAmPolite);
+        registerSignalingListeners(); // safe: PC is set synchronously inside createOffer
+      }, delay);
 
       setLoading(false);
     } catch {
@@ -280,6 +297,12 @@ const SessionRoomPage = () => {
 
   return (
     <div className="h-screen bg-gray-950 flex flex-col overflow-hidden select-none">
+
+      {/* Hidden audio element — plays remote audio independently of the video element.
+          Uses visibility:hidden + zero size instead of display:none because some
+          browsers suspend audio playback on display:none elements. */}
+      <audio ref={remoteAudioRef} autoPlay playsInline
+        style={{ position: 'absolute', width: 0, height: 0, visibility: 'hidden' }} />
 
       {/* ── Toast ─────────────────────────────────────────────────────────── */}
       {toast && (

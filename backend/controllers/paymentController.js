@@ -21,7 +21,7 @@ const initiateKhaltiPayment = async (req, res) => {
     if (booking.userId._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    if (!['pending', 'confirmed', 'completed'].includes(booking.status)) {
+    if (!['pending', 'confirmed', 'completed', 'expired'].includes(booking.status)) {
       return res.status(400).json({ message: 'Payment is only allowed for confirmed or completed sessions' });
     }
     if (booking.payment?.status === 'paid') {
@@ -112,7 +112,7 @@ const initiateEsewaPayment = async (req, res) => {
     if (booking.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    if (!['pending', 'confirmed', 'completed'].includes(booking.status)) {
+    if (!['pending', 'confirmed', 'completed', 'expired'].includes(booking.status)) {
       return res.status(400).json({ message: 'Payment is only allowed for confirmed or completed sessions' });
     }
     if (booking.payment?.status === 'paid') {
