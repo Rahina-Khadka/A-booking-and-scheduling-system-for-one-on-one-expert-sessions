@@ -35,7 +35,7 @@ const ICE_CONFIG = {
 };
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
-const useWebRTC = (bookingId) => {
+const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const [localStream,    setLocalStream]    = useState(null);
   const [remoteStream,   setRemoteStream]   = useState(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -114,12 +114,33 @@ const useWebRTC = (bookingId) => {
       console.log('[WebRTC] ontrack ←', track.kind);
       track.enabled = true;
       remoteTracksRef.current[track.kind] = track;
+
       const s = buildRemoteStream();
-      if (s) { setRemoteStream(s); setIsConnected(true); }
+      if (!s) return;
+
+      // Assign directly to DOM elements immediately — do NOT wait for React
+      // state update + re-render cycle, which can miss the assignment if the
+      // video element was not yet in the DOM when the effect ran.
+      if (remoteVideoRef?.current) {
+        remoteVideoRef.current.srcObject = s;
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (remoteAudioRef?.current) {
+        remoteAudioRef.current.srcObject = s;
+        remoteAudioRef.current.play().catch(() => {});
+      }
+
+      // Also update React state so the UI switches from waiting → video view
+      setRemoteStream(s);
+      setIsConnected(true);
+
       track.onunmute = () => {
         track.enabled = true;
         const u = buildRemoteStream();
-        if (u) setRemoteStream(u);
+        if (!u) return;
+        if (remoteVideoRef?.current) { remoteVideoRef.current.srcObject = u; remoteVideoRef.current.play().catch(() => {}); }
+        if (remoteAudioRef?.current) { remoteAudioRef.current.srcObject = u; remoteAudioRef.current.play().catch(() => {}); }
+        setRemoteStream(u);
       };
     };
 

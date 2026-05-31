@@ -86,7 +86,7 @@ const SessionRoomPage = () => {
 
   const { localStream, remoteStream, isAudioEnabled, isVideoEnabled, isConnected,
           initializeMedia, createOffer, toggleAudio, toggleVideo, cleanup,
-          registerSignalingListeners, peerConnection } = useWebRTC(bookingId);
+          registerSignalingListeners, peerConnection } = useWebRTC(bookingId, remoteVideoRef, remoteAudioRef);
 
   const timer = useTimer(isConnected);
 
@@ -121,23 +121,15 @@ const SessionRoomPage = () => {
 
   useEffect(() => {
     if (!remoteStream) return;
-
-    // Attach stream to the video element (renders remote video)
+    // Assign srcObject directly — video element is always in DOM now
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      // Explicitly call play() — autoPlay attribute alone can be blocked by
-      // browser autoplay policy when the stream contains audio tracks.
       remoteVideoRef.current.play().catch(() => {});
     }
-
-    // Attach stream to the dedicated audio element.
-    // Using a separate <audio> element is more reliable than relying on the
-    // <video> element to play audio, especially before a video track exists.
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = remoteStream;
       remoteAudioRef.current.play().catch(() => {});
     }
-
     setIsOtherUserOnline(true);
   }, [remoteStream]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -390,11 +382,19 @@ const SessionRoomPage = () => {
 
           {/* Video area */}
           <div className="flex-1 relative bg-gray-950 overflow-hidden">
-            {remoteStream ? (
-              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-            ) : (
-              /* Waiting state */
-              <div className="w-full h-full flex flex-col items-center justify-center gap-5"
+
+            {/* Remote video — always in DOM so ref is always valid when srcObject is assigned */}
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+              style={{ display: remoteStream ? 'block' : 'none' }}
+            />
+
+            {/* Waiting state — shown when no remote stream yet */}
+            {!remoteStream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5"
                 style={{ background: 'radial-gradient(ellipse at center, #1f2937 0%, #111827 70%)' }}>
                 {/* Pulsing avatar */}
                 <div className="relative">
