@@ -3,7 +3,7 @@ import socketService from '../services/socketService';
 import api from '../services/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fallback ICE config used if backend fetch fails
+// Fallback ICE config — used if backend fetch fails
 // ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_ICE = {
   iceServers: [
@@ -22,31 +22,6 @@ const FALLBACK_ICE = {
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
-    {
-      urls: [
-        'turn:a.relay.metered.ca:80',
-        'turn:a.relay.metered.ca:80?transport=tcp',
-        'turn:a.relay.metered.ca:443',
-        'turn:a.relay.metered.ca:443?transport=tcp',
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:numb.viagenie.ca',
-      credential: 'muazkh',
-      username: 'webrtc@live.com',
-    },
-    {
-      urls: 'turn:192.158.29.39:3478?transport=udp',
-      credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-      username: '28224511:1379330808',
-    },
-    {
-      urls: 'turn:192.158.29.39:3478?transport=tcp',
-      credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-      username: '28224511:1379330808',
-    },
   ],
   iceCandidatePoolSize: 10,
   iceTransportPolicy: 'all',
@@ -56,20 +31,17 @@ const fetchIceConfig = async () => {
   try {
     const res = await api.get('/auth/turn-credentials');
     if (res.data?.iceServers?.length) {
-      console.log('[WebRTC] Using ICE servers from backend:', res.data.iceServers.length, 'servers');
+      console.log('[TURN] Got', res.data.iceServers.length, 'ICE servers from backend');
       return { iceServers: res.data.iceServers, iceCandidatePoolSize: 10, iceTransportPolicy: 'all' };
     }
   } catch (e) {
-    console.warn('[WebRTC] Failed to fetch ICE config from backend, using fallback:', e.message);
+    console.warn('[TURN] Backend fetch failed, using fallback:', e.message);
   }
   return FALLBACK_ICE;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useWebRTC hook
-// bookingId      — used as the signaling room identifier
-// remoteVideoRef — ref to the <video> element for remote video
-// remoteAudioRef — ref to the <audio> element for remote audio
+// useWebRTC
 // ─────────────────────────────────────────────────────────────────────────────
 const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const [localStream,    setLocalStream]    = useState(null);
@@ -78,13 +50,16 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [isConnected,    setIsConnected]    = useState(false);
 
-  const pcRef             = useRef(null);   // RTCPeerConnection
-  const localStreamRef    = useRef(null);   // local MediaStream
-  const iceConfigRef      = useRef(null);   // fetched ICE config
+  const pcRef             = useRef(null);
+  const localStreamRef    = useRef(null);
+  const iceConfigRef      = useRef(null);
   const remoteTracksRef   = useRef({ audio: null, video: null });
-  const iceCandidateQueue = useRef([]);     // candidates queued before remote desc
+  const iceCandidateQueue = useRef([]);
   const remoteDescSet     = useRef(false);
-  const isOffererRef      = useRef(false);  // true = this peer sent the offer
+  // negotiationReady: true only after the initial offer/answer is complete.
+  // Prevents onnegotiationneeded from firing a second offer during setup.
+  const negotiationReady  = useRef(false);
+  const isOffererRef      = useRef(false);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -97,7 +72,6 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
 
   const applyRemoteStream = (s) => {
     if (!s) return;
-    // Assign directly to DOM — don't wait for React re-render
     if (remoteVideoRef?.current) {
       remoteVideoRef.current.srcObject = s;
       remoteVideoRef.current.play().catch(() => {});
@@ -112,7 +86,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
 
   const flushIceQueue = async (pc) => {
     const queued = iceCandidateQueue.current.splice(0);
-    console.log(`[WebRTC] Flushing ${queued.length} queued ICE candidates`);
+    if (queued.length) console.log('[WebRTC] Flushing', queued.length, 'queued ICE candidates');
     for (const c of queued) {
       try { await pc.addIceCandidate(new RTCIceCandidate(c)); }
       catch (e) { console.warn('[WebRTC] queued ICE error:', e.message); }
@@ -122,35 +96,21 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   // ── Media ──────────────────────────────────────────────────────────────────
 
   const initializeMedia = useCallback(async (audio = true, video = true) => {
-    // Always request BOTH audio and video so both tracks are in the initial
-    // SDP offer/answer. If we only request audio here and add video later via
-    // addTrack(), renegotiation is required — which is fragile.
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: audio
-          ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          : false,
-        video: video
-          ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
-          : false,
+        audio: audio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
+        video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } : false,
       });
-    } catch (err) {
-      console.warn('[WebRTC] getUserMedia with constraints failed, trying plain:', err.message);
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio, video });
-      } catch (err2) {
-        console.warn('[WebRTC] getUserMedia video failed, falling back to audio only:', err2.message);
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      }
+    } catch {
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio, video }); }
+      catch { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); }
     }
     localStreamRef.current = stream;
     setLocalStream(stream);
     setIsAudioEnabled(stream.getAudioTracks().length > 0);
     setIsVideoEnabled(stream.getVideoTracks().length > 0);
-    console.log('[WebRTC] Local stream tracks:',
-      stream.getTracks().map(t => `${t.kind}:${t.enabled}`).join(', '));
-    // Fetch ICE config now so it's ready when createPeerConnection is called
+    console.log('[WebRTC] Local tracks:', stream.getTracks().map(t => `${t.kind}:${t.enabled}`).join(', '));
     iceConfigRef.current = await fetchIceConfig();
     return stream;
   }, []);
@@ -158,21 +118,19 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   // ── Create RTCPeerConnection ────────────────────────────────────────────────
 
   const createPeerConnection = () => {
-    // Close any existing connection cleanly
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
+    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
     remoteTracksRef.current   = { audio: null, video: null };
     iceCandidateQueue.current = [];
     remoteDescSet.current     = false;
+    negotiationReady.current  = false;   // block onnegotiationneeded until setup done
     setRemoteStream(null);
 
     const iceConfig = iceConfigRef.current || FALLBACK_ICE;
-    console.log('[WebRTC] Creating RTCPeerConnection with', iceConfig.iceServers.length, 'ICE servers');
+    console.log('[WebRTC] New RTCPeerConnection,', iceConfig.iceServers.length, 'ICE servers');
     const pc = new RTCPeerConnection(iceConfig);
 
-    // ── Add all local tracks ──────────────────────────────────────────────
+    // Add local tracks BEFORE setting onnegotiationneeded.
+    // This prevents the handler from firing during addTrack() calls.
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         console.log('[WebRTC] addTrack →', track.kind, 'enabled:', track.enabled);
@@ -180,51 +138,54 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
       });
     }
 
-    // ── Receive remote tracks ─────────────────────────────────────────────
+    // Set onnegotiationneeded AFTER addTrack so it only fires for future
+    // renegotiations (e.g. video toggle), not for the initial track setup.
+    pc.onnegotiationneeded = async () => {
+      // Only fire after initial offer/answer is complete, and only on offerer side
+      if (!negotiationReady.current) {
+        console.log('[WebRTC] onnegotiationneeded suppressed (initial setup)');
+        return;
+      }
+      if (!isOffererRef.current) return;
+      if (pc.signalingState !== 'stable') return;
+      console.log('[WebRTC] onnegotiationneeded — renegotiating');
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socketService.sendOffer(bookingId, pc.localDescription);
+        console.log('[WebRTC] Renegotiation offer sent');
+      } catch (err) {
+        console.error('[WebRTC] onnegotiationneeded error:', err.message);
+      }
+    };
+
     pc.ontrack = (e) => {
       const track = e.track;
-      console.log('[WebRTC] Remote Track Received ←', track.kind,
-        'enabled:', track.enabled, 'state:', track.readyState);
+      console.log('[WebRTC] Remote Track Received ←', track.kind, 'readyState:', track.readyState);
       track.enabled = true;
       remoteTracksRef.current[track.kind] = track;
       const s = buildRemoteStream();
       if (s) applyRemoteStream(s);
       track.onunmute = () => {
-        console.log('[WebRTC] track unmuted:', track.kind);
         track.enabled = true;
         const u = buildRemoteStream();
         if (u) applyRemoteStream(u);
       };
     };
 
-    // ── ICE candidates ────────────────────────────────────────────────────
     pc.onicecandidate = (e) => {
       if (e.candidate) {
-        console.log('[WebRTC] ICE Candidate Generated:', e.candidate.type);
+        console.log('[WebRTC] ICE Candidate Generated:', e.candidate.type, e.candidate.protocol);
         socketService.sendIceCandidate(bookingId, e.candidate);
       } else {
         console.log('[WebRTC] ICE gathering complete');
       }
     };
 
-    // ── Renegotiation (needed when video track added after initial offer) ──
-    pc.onnegotiationneeded = async () => {
-      // Only the offerer side should renegotiate
-      if (!isOffererRef.current) return;
-      if (pc.signalingState !== 'stable') return;
-      console.log('[WebRTC] onnegotiationneeded — sending new offer');
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socketService.sendOffer(bookingId, pc.localDescription);
-      } catch (err) {
-        console.error('[WebRTC] onnegotiationneeded error:', err.message);
-      }
-    };
-
-    // ── Connection state ──────────────────────────────────────────────────
     pc.onconnectionstatechange = () => {
-      console.log('[WebRTC] Connection State:', pc.connectionState);
+      console.log('[WebRTC] Connection State:', pc.connectionState,
+        '| ICE:', pc.iceConnectionState,
+        '| Signaling:', pc.signalingState);
       if (pc.connectionState === 'connected')    setIsConnected(true);
       if (pc.connectionState === 'disconnected' ||
           pc.connectionState === 'failed')        setIsConnected(false);
@@ -234,14 +195,27 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
       console.log('[WebRTC] ICE State:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' ||
           pc.iceConnectionState === 'completed')  setIsConnected(true);
+      if (pc.iceConnectionState === 'failed') {
+        console.error('[WebRTC] ICE FAILED — attempting restart');
+        // ICE restart: only offerer can restart
+        if (isOffererRef.current && pc.signalingState === 'stable') {
+          pc.createOffer({ iceRestart: true })
+            .then(o => pc.setLocalDescription(o))
+            .then(() => {
+              socketService.sendOffer(bookingId, pc.localDescription);
+              console.log('[WebRTC] ICE restart offer sent');
+            })
+            .catch(err => console.error('[WebRTC] ICE restart error:', err.message));
+        }
+      }
     };
 
     pc.onicegatheringstatechange = () => {
-      console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState);
+      console.log('[WebRTC] ICE Gathering:', pc.iceGatheringState);
     };
 
     pc.onsignalingstatechange = () => {
-      console.log('[WebRTC] Signaling state:', pc.signalingState);
+      console.log('[WebRTC] Signaling State:', pc.signalingState);
     };
 
     pcRef.current = pc;
@@ -249,12 +223,11 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   };
 
   // ── Signaling handlers ─────────────────────────────────────────────────────
-  // These read pcRef.current at call-time so they are never stale.
 
   const handleOffer = async (offer) => {
     const pc = pcRef.current;
     if (!pc) { console.warn('[WebRTC] handleOffer: no PC'); return; }
-    console.log('[WebRTC] Offer Received, signalingState:', pc.signalingState);
+    console.log('[WebRTC] Offer Received | signalingState:', pc.signalingState);
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       remoteDescSet.current = true;
@@ -262,7 +235,9 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socketService.sendAnswer(bookingId, pc.localDescription);
-      console.log('[WebRTC] Answer Sent');
+      console.log('[WebRTC] Answer Sent | signalingState:', pc.signalingState);
+      // Answerer: mark negotiation complete so future onnegotiationneeded can fire
+      negotiationReady.current = true;
     } catch (err) {
       console.error('[WebRTC] handleOffer error:', err.message);
     }
@@ -271,16 +246,18 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const handleAnswer = async (answer) => {
     const pc = pcRef.current;
     if (!pc) { console.warn('[WebRTC] handleAnswer: no PC'); return; }
-    console.log('[WebRTC] Answer Received, signalingState:', pc.signalingState);
+    console.log('[WebRTC] Answer Received | signalingState:', pc.signalingState);
     if (pc.signalingState !== 'have-local-offer') {
-      console.warn('[WebRTC] handleAnswer: unexpected state, ignoring');
+      console.warn('[WebRTC] handleAnswer: unexpected signalingState, ignoring');
       return;
     }
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
       remoteDescSet.current = true;
       await flushIceQueue(pc);
-      console.log('[WebRTC] Remote description set from answer');
+      console.log('[WebRTC] Remote desc set from answer | signalingState:', pc.signalingState);
+      // Offerer: mark negotiation complete so future onnegotiationneeded can fire
+      negotiationReady.current = true;
     } catch (err) {
       console.error('[WebRTC] handleAnswer error:', err.message);
     }
@@ -289,9 +266,8 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   const handleIceCandidate = async (candidate) => {
     const pc = pcRef.current;
     if (!pc) return;
-    console.log('[WebRTC] ICE Candidate Received');
+    console.log('[WebRTC] ICE Candidate Received | remoteDescSet:', remoteDescSet.current);
     if (!remoteDescSet.current) {
-      console.log('[WebRTC] Queuing ICE candidate (no remote desc yet)');
       iceCandidateQueue.current.push(candidate);
       return;
     }
@@ -306,14 +282,13 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
     socketService.socket.off('webrtc-offer');
     socketService.socket.off('webrtc-answer');
     socketService.socket.off('webrtc-ice-candidate');
-    // Lambdas call handlers at invocation time — always reads latest pcRef
     socketService.socket.on('webrtc-offer',         ({ offer })     => handleOffer(offer));
     socketService.socket.on('webrtc-answer',        ({ answer })    => handleAnswer(answer));
     socketService.socket.on('webrtc-ice-candidate', ({ candidate }) => handleIceCandidate(candidate));
     console.log('[WebRTC] Signaling listeners registered');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Start as offerer ────────────────────────────────────────────────────────
+  // ── Offerer ────────────────────────────────────────────────────────────────
 
   const startAsOfferer = async () => {
     isOffererRef.current = true;
@@ -326,13 +301,13 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
       });
       await pc.setLocalDescription(offer);
       socketService.sendOffer(bookingId, pc.localDescription);
-      console.log('[WebRTC] Offer Sent');
+      console.log('[WebRTC] Offer Sent | signalingState:', pc.signalingState);
     } catch (err) {
-      console.error('[WebRTC] startAsOfferer error:', err);
+      console.error('[WebRTC] startAsOfferer error:', err.message);
     }
   };
 
-  // ── Start as answerer ───────────────────────────────────────────────────────
+  // ── Answerer ───────────────────────────────────────────────────────────────
 
   const startAsAnswerer = () => {
     isOffererRef.current = false;
@@ -343,11 +318,8 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
   // ── Unified entry point ─────────────────────────────────────────────────────
 
   const createOffer = useCallback(async (isPolite = false) => {
-    if (isPolite) {
-      startAsAnswerer();
-    } else {
-      await startAsOfferer();
-    }
+    if (isPolite) { startAsAnswerer(); }
+    else          { await startAsOfferer(); }
   }, [bookingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Audio toggle ────────────────────────────────────────────────────────────
@@ -374,21 +346,20 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
         const newStream = new MediaStream([...existingAudio, vt]);
         localStreamRef.current = newStream;
         setLocalStream(newStream);
-
         if (pcRef.current) {
           const senders = pcRef.current.getSenders();
           const videoSender = senders.find(s => s.track?.kind === 'video' || s.track === null);
           if (videoSender) {
             await videoSender.replaceTrack(vt);
-            console.log('[WebRTC] Video track replaced');
+            console.log('[WebRTC] Video track replaced via replaceTrack');
           } else {
             pcRef.current.addTrack(vt, newStream);
-            console.log('[WebRTC] Video track added (will trigger renegotiation)');
+            console.log('[WebRTC] Video track added (renegotiation will follow)');
           }
         }
         setIsVideoEnabled(true);
       } catch (err) {
-        console.error('[WebRTC] toggleVideo on error:', err.message);
+        console.error('[WebRTC] toggleVideo error:', err.message);
       }
     } else {
       const vt = localStreamRef.current?.getVideoTracks()[0];
@@ -404,7 +375,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
         localStreamRef.current = newStream;
         setLocalStream(newStream);
         setIsVideoEnabled(false);
-        console.log('[WebRTC] Video track stopped');
+        console.log('[WebRTC] Video stopped');
       }
     }
   }, [isVideoEnabled]);
@@ -418,6 +389,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
     remoteTracksRef.current   = { audio: null, video: null };
     iceCandidateQueue.current = [];
     remoteDescSet.current     = false;
+    negotiationReady.current  = false;
     isOffererRef.current      = false;
     pcRef.current?.close();
     pcRef.current             = null;
@@ -431,7 +403,7 @@ const useWebRTC = (bookingId, remoteVideoRef, remoteAudioRef) => {
     localStream, remoteStream, isAudioEnabled, isVideoEnabled, isConnected,
     initializeMedia, createOffer, toggleAudio, toggleVideo, cleanup,
     registerSignalingListeners,
-    peerConnection: pcRef,   // expose as ref for connection state tracking
+    peerConnection: pcRef,
   };
 };
 
